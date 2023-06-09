@@ -1,0 +1,32 @@
+﻿  SegmentalReconcil.cpp
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(237,46): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(264,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(266,30): warning C4018: '>': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(313,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(359,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(424,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(80,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(82,31): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(101,31): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(104,35): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(74,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(121,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(230,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(287,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(309,31): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(471,39): warning C4018: '>=': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(491,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(511,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(544,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(625,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(640,32): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(696,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(711,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(726,32): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(753,27): warning C4018: '<': signed/unsigned mismatch
+  Generating code
+  146 of 2120 functions ( 6.9%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    17 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  segmental reconciliation.vcxproj -> C:\Users\kalr2301\source\repos\segmental reconciliation\Release\segmental reconciliation.exe

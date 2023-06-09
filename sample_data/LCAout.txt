@@ -1,0 +1,75 @@
+<COST>
+112.6
+</COST>
+<DUPHEIGHT>
+7
+</DUPHEIGHT>
+<NBLOSSES>
+426
+</NBLOSSES>
+<SPECIESTREE>
+(((((((((aves, rept)0, mamm)1, amph)2, ((oste, chon)3, agna)4)5, echi)6, (((moll, anne)7, arth)8, acoe)9)10, (embr, chlo)11)12, prot)13, fung)14;
+</SPECIESTREE>
+<GENETREES>
+(((aves, mamm)0_1_Spec, arth)1_10_Spec, prot)2_13_Spec;
+(((aves, mamm)3_1_Spec, arth)4_10_Spec, amph)5_10_Dup_nb1;
+(((aves, mamm)6_1_Spec, amph)7_2_Spec, chon)8_5_Spec;
+(((amph, aves)9_2_Spec, mamm)10_2_Dup_nb2, chon)11_5_Spec;
+((((acoe, mamm)12_10_Spec, chlo)13_12_Spec, fung)14_14_Spec, prot)15_14_Dup_nb3;
+(((((echi, arth)16_10_Spec, mamm)17_10_Dup_nb4, embr)18_12_Spec, fung)19_14_Spec, prot)20_14_Dup_nb5;
+((((echi, arth)21_10_Spec, mamm)22_10_Dup_nb6, prot)23_13_Spec, embr)24_13_Dup_nb7;
+(((amph, mamm)25_2_Spec, oste)26_5_Spec, aves)27_5_Dup_nb8;
+(((aves, mamm)28_1_Spec, amph)29_2_Spec, oste)30_5_Spec;
+(((aves, mamm)31_1_Spec, oste)32_5_Spec, amph)33_5_Dup_nb9;
+((chlo, embr)34_11_Spec, (fung, mamm)35_14_Spec)36_14_Dup_nb10;
+(((arth, mamm)37_10_Spec, fung)38_14_Spec, embr)39_14_Dup_nb11;
+(((aves, mamm)40_1_Spec, fung)41_14_Spec, embr)42_14_Dup_nb12;
+((((aves, mamm)43_1_Spec, amph)44_2_Spec, chon)45_5_Spec, oste)46_5_Dup_nb13;
+(((rept, aves)47_0_Spec, mamm)48_1_Spec, chon)49_5_Spec;
+(((moll, mamm)50_10_Spec, amph)51_10_Dup_nb14, arth)52_10_Dup_nb15;
+(((moll, mamm)53_10_Spec, echi)54_10_Dup_nb16, arth)55_10_Dup_nb17;
+(((embr, mamm)56_12_Spec, fung)57_14_Spec, arth)58_14_Dup_nb18;
+((((aves, mamm)59_1_Spec, acoe)60_10_Spec, arth)61_10_Dup_nb19, fung)62_14_Spec;
+(((acoe, arth)63_9_Spec, mamm)64_10_Spec, fung)65_14_Spec;
+(((acoe, mamm)66_10_Spec, arth)67_10_Dup_nb20, fung)68_14_Spec;
+(((embr, mamm)69_12_Spec, fung)70_14_Spec, prot)71_14_Dup_nb21;
+(((aves, mamm)72_1_Spec, amph)73_2_Spec, fung)74_14_Spec;
+(((amph, aves)75_2_Spec, mamm)76_2_Dup_nb22, chon)77_5_Spec;
+(((amph, mamm)78_2_Spec, echi)79_6_Spec, anne)80_10_Spec;
+((embr, prot)81_13_Spec, (fung, (echi, (mamm, amph)82_2_Spec)83_6_Spec)84_14_Spec)85_14_Dup_nb23;
+(((echi, mamm)86_6_Spec, chlo)87_12_Spec, embr)88_12_Dup_nb24;
+(((((anne, moll)89_7_Spec, arth)90_8_Spec, echi)91_10_Spec, ((aves, mamm)92_1_Spec, oste)93_5_Spec)94_10_Dup_nb25, acoe)95_10_Dup_nb26;
+((((amph, mamm)96_2_Spec, echi)97_6_Spec, fung)98_14_Spec, prot)99_14_Dup_nb27;
+(((chlo, embr)100_11_Spec, ((echi, mamm)101_6_Spec, acoe)102_10_Spec)103_12_Spec, fung)104_14_Spec;
+(((embr, mamm)105_12_Spec, fung)106_14_Spec, prot)107_14_Dup_nb28;
+(((amph, mamm)108_2_Spec, embr)109_12_Spec, prot)110_13_Spec;
+((((((acoe, echi)111_10_Spec, (arth, mamm)112_10_Spec)113_10_Dup_nb29, embr)114_12_Spec, chlo)115_12_Dup_nb30, fung)116_14_Spec, prot)117_14_Dup_nb31;
+((((rept, mamm)118_1_Spec, amph)119_2_Spec, oste)120_5_Spec, chon)121_5_Dup_nb32;
+(((amph, mamm)122_2_Spec, oste)123_5_Spec, chon)124_5_Dup_nb33;
+(((((amph, mamm)125_2_Spec, echi)126_6_Spec, arth)127_10_Spec, embr)128_12_Spec, acoe)129_12_Dup_nb34;
+(((amph, aves)130_2_Spec, mamm)131_2_Dup_nb35, rept)132_5_Dup_nb36;
+(((aves, mamm)133_1_Spec, agna)134_5_Spec, moll)135_10_Spec;
+((amph, mamm)136_2_Spec, (rept, aves)137_0_Spec)138_2_Dup_nb37;
+((((amph, mamm)139_2_Spec, arth)140_10_Spec, embr)141_12_Spec, fung)142_14_Spec;
+(((amph, mamm)143_2_Spec, oste)144_5_Spec, chon)145_5_Dup_nb38;
+((((aves, mamm)146_1_Spec, arth)147_10_Spec, prot)148_13_Spec, fung)149_14_Spec;
+(((arth, mamm)150_10_Spec, fung)151_14_Spec, prot)152_14_Dup_nb39;
+(((arth, mamm)153_10_Spec, embr)154_12_Spec, prot)155_13_Spec;
+((((chlo, prot)156_13_Spec, embr)157_13_Dup_nb40, ((arth, mamm)158_10_Spec, echi)159_10_Dup_nb41)160_14_Dup_nb42, fung)161_14_Dup_nb43;
+(((arth, mamm)162_10_Spec, embr)163_12_Spec, fung)164_14_Spec;
+(((chlo, prot)165_13_Spec, ((echi, mamm)166_6_Spec, acoe)167_10_Spec)168_13_Dup_nb44, fung)169_14_Spec;
+((((chlo, embr)170_11_Spec, (aves, mamm)171_1_Spec)172_12_Spec, prot)173_13_Spec, fung)174_14_Spec;
+(((((amph, aves)175_2_Spec, mamm)176_2_Dup_nb45, arth)177_10_Spec, embr)178_12_Spec, fung)179_14_Spec;
+(((arth, mamm)180_10_Spec, fung)181_14_Spec, prot)182_14_Dup_nb46;
+(((amph, aves)183_2_Spec, mamm)184_2_Dup_nb47, oste)185_5_Spec;
+(((amph, mamm)186_2_Spec, chon)187_5_Spec, arth)188_10_Spec;
+((((chlo, embr)189_11_Spec, (acoe, mamm)190_10_Spec)191_12_Spec, prot)192_13_Spec, fung)193_14_Spec;
+</GENETREES>
+<DUPS_PER_SPECIES>
+[2] 2_Dup_nb2 (G4) 2_Dup_nb22 (G24) 2_Dup_nb35 (G37) 2_Dup_nb37 (G39) 2_Dup_nb45 (G49) 2_Dup_nb47 (G51) 
+[5] 5_Dup_nb8 (G8) 5_Dup_nb9 (G10) 5_Dup_nb13 (G14) 5_Dup_nb32 (G34) 5_Dup_nb33 (G35) 5_Dup_nb36 (G37) 5_Dup_nb38 (G41) 
+[10] 10_Dup_nb1 (G2) 10_Dup_nb4 (G6) 10_Dup_nb6 (G7) 10_Dup_nb14 (G16) 10_Dup_nb15 (G16) 10_Dup_nb16 (G17) 10_Dup_nb17 (G17) 10_Dup_nb19 (G19) 10_Dup_nb20 (G21) 10_Dup_nb25 (G28) 10_Dup_nb26 (G28) 10_Dup_nb29 (G33) 10_Dup_nb41 (G45) 
+[12] 12_Dup_nb24 (G27) 12_Dup_nb30 (G33) 12_Dup_nb34 (G36) 
+[13] 13_Dup_nb7 (G7) 13_Dup_nb40 (G45) 13_Dup_nb44 (G47) 
+[14] 14_Dup_nb3 (G5) 14_Dup_nb5 (G6) 14_Dup_nb10 (G11) 14_Dup_nb11 (G12) 14_Dup_nb12 (G13) 14_Dup_nb18 (G18) 14_Dup_nb21 (G22) 14_Dup_nb23 (G26) 14_Dup_nb27 (G29) 14_Dup_nb28 (G31) 14_Dup_nb31 (G33) 14_Dup_nb39 (G43) 14_Dup_nb42 (G45) 14_Dup_nb43 (G45) 14_Dup_nb46 (G50) 
+</DUPS_PER_SPECIES>

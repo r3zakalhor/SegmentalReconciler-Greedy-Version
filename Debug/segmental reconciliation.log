@@ -1,0 +1,27 @@
+﻿  SegmentalReconcil.cpp
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(237,46): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(264,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(266,30): warning C4018: '>': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(313,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(359,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\util.h(424,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(80,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(82,31): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(101,31): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\hashtable.h(104,35): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(74,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(118,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(227,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(284,27): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(306,31): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(468,39): warning C4018: '>=': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(488,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(508,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(541,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(622,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(637,32): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(693,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(708,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(723,32): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\kalr2301\source\repos\segmental reconciliation\segmental reconciliation\SegmentalReconcil.cpp(750,27): warning C4018: '<': signed/unsigned mismatch
+  segmental reconciliation.vcxproj -> C:\Users\kalr2301\source\repos\segmental reconciliation\Debug\segmental reconciliation.exe
