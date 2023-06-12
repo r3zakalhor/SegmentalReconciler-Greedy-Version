@@ -1,819 +1,1092 @@
+#include <iostream>
+
+#include <map>
+#include "util.h"
+#include "newicklex.h"
+#include "node.h"
+#include "genespeciestreeutil.h"
+#include "treeiterator.h"
+#include "multigenereconciler.h"
 #include "SegmentalReconcile.h"
 
-SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies)
+using namespace std;
+
+
+int verbose = 0;
+
+
+//labels the gene trees to prepare them for output.  Adds the species mapping to the out,
+//plus _Spec or _Dup_nbx, where x is a dup id.  Also returns a map of dups per species,
+//since we're computing it in this function anyway.  The value is a vector of int/Node pairs,
+//where the int is the gene tree index and the node is a dup node in this tree.
+//I agree that this function does more than just labelling with species mapping, but hey, life is tough.
+map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping(vector<Node*> geneTrees, Node* speciesTree, MultiGeneReconciler& reconciler, MultiGeneReconcilerInfo& info, bool resetLabels = true)
 {
-    this->geneTrees = geneTrees;
-    this->speciesTree = speciesTree;
-    this->geneSpeciesMapping = geneSpeciesMapping;
-    this->dupcost = dupcost;
-    this->losscost = losscost;
-    this->maxDupHeight = maxDupHeight;
-    this->nbspecies = nbspecies;
-    hashtable.resize(nbspecies);
-}
-
-
-
-SegmentalReconcileInfo SegmentalReconcile::Reconcile()
-{
-    ComputeLCAMapping();
-
-    unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
-
-    unordered_map<Node*, int> duplicationHeights;
-    TreeIterator* it = speciesTree->GetPostOrderIterator();
-    while (Node* s = it->next())
+    map<Node*, vector< pair<int, Node*> > > dups_per_species;
+    int dup_counter = 1;
+    for (int i = 0; i < geneTrees.size(); i++)
     {
-        duplicationHeights[s] = 0;
-    }
-    speciesTree->CloseIterator(it);
+        Node* genetree = geneTrees[i];
 
-    vector<Node*> minimalNodes = GetMinimalUnmappedNodes(partialMapping);
-    int dupheight = 0;
-
-    //int added_losses = CleanupPartialMapping(partialMapping, duplicationHeights, minimalNodes);
-
-    while (minimalNodes.size() > 0)
-    {
-        for (int j = minimalNodes.size() - 1; j >= 0; j--)
+        TreeIterator* it = genetree->GetPostOrderIterator();
+        while (Node* g = it->next())
         {
-            Node* g = minimalNodes[j];
-            g->SetDup(false);
-            //bool canBeSpec = !IsRequiredDuplication(g, partialMapping);
-            //bool isEasyDup = IsEasyDuplication(g, partialMapping, duplicationheights);
-            //if (canBeSpec || isEasyDup)
-            //{
-            Node* s = GetLowestPossibleMapping(g, partialMapping);
-            partialMapping[g] = s;
-            dupheight = GetDuplicationHeightUnder(g, s, partialMapping);
-            //cout << " slbl " << s->GetLabel();
-            if (dupheight > 0) {
-                int slbl = Util::ToInt(s->GetLabel());
-                int glbl = Util::ToInt(g->GetLabel());
-                //cout << " s " << slbl << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
-                g->SetDup(true);
-                hashtable[slbl].add_cell(dupheight, g);
-            }
-                //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
-                //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
-                //if (canBeSpec)
-                    //nblosses -= 2;
-                //the parent of g might become minimal - we'll add it in this case.
-                //since we are iterating over new_minimals in the reverse order, this below works
-            if (!g->IsRoot() && IsMinimalUnmapped(g->GetParent(), partialMapping))
+            if (!g->IsLeaf())
             {
-                minimalNodes.push_back(g->GetParent());
+                string lbl = g->GetLabel();
+                if (lbl != "")
+                    lbl += "_";
+
+                if (resetLabels)
+                    lbl = "";
+
+                lbl += info.partialMapping[g]->GetLabel();
+
+                if (reconciler.IsDuplication(g, info.partialMapping))
+                {
+                    lbl += "_Dup_nb" + Util::ToString(dup_counter);
+                    dup_counter++;
+
+                    vector< pair<int, Node*> > dups_for_s;
+                    if (dups_per_species.find(info.partialMapping[g]) != dups_per_species.end())
+                        dups_for_s = dups_per_species[info.partialMapping[g]];
+                    pair<int, Node*> p = make_pair(i + 1, g);
+                    dups_for_s.push_back(p);
+                    dups_per_species[info.partialMapping[g]] = dups_for_s;
+                }
+                else
+                    lbl += "_Spec";
+                g->SetLabel(lbl);
             }
-            //}
-            //no point in considering g from now on - we remove it from further consideration.
-            minimalNodes.erase(minimalNodes.begin() + j);
         }
+        genetree->CloseIterator(it);
     }
 
-
-    for (int i = 0; i < hashtable.size(); i++) {
-        cout << "Species " << i << " ";
-        hashtable[i].print();
-        //cout << "size " << hashtable[i].size() << endl;
-    }
-
-    int nblosses = GetnbLosses(partialMapping);
-    int dupheightsum = GetdupHeightSum(hashtable);
-    cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
-    cout << " nb Losses of LCA : " << nblosses << " nb Dupheightsum of LCA : " << dupheightsum << endl;
-
-
-    currentBestInfo.dupHeightSum = dupheightsum;
-    currentBestInfo.nbLosses = nblosses;
-    currentBestInfo.isBad = true;
-    double cost = currentBestInfo.GetCost(dupcost, losscost);
-
-    cout << " cost of LCA : " << cost << endl;
-
-    //hashtable[13].remove(2, "160");
-    //GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, 10, 0.1);
-    SegmentalReconcileInfo info;
-    info.dupHeightSum = dupheightsum;
-    info.nbLosses = nblosses;
-    info.isBad = false;
-    info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost);
-    //info.dupHeightSum = 0;
-    //info.nbLosses = added_losses;
-    info.partialMapping = partialMapping;
-
-    SegmentalReconcileInfo retinfo = ReconcileRecursive(info, duplicationHeights);
-
-    return retinfo;
+    return dups_per_species;
 }
 
+map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping(vector<Node*> geneTrees, Node* speciesTree, SegmentalReconcile& reconciler, SegmentalReconcileInfo& info, bool resetLabels = true)
+{
+    map<Node*, vector< pair<int, Node*> > > dups_per_species;
+    int dup_counter = 1;
+    for (int i = 0; i < geneTrees.size(); i++)
+    {
+        Node* genetree = geneTrees[i];
 
-SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist> hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost)
-{   
-    vector<hashlist> backuphash = hashtable;
-    unordered_map<Node*, Node*> backuppartialMapping = partialMapping;
-    vector<Node*> minimalNodes;
-    SegmentalReconcileInfo greedyinfo;
-    greedyinfo.dupHeightSum = GetdupHeightSum(hashtable);
-    greedyinfo.nbLosses = GetnbLosses(partialMapping);
-    SegmentalReconcileInfo greedyinfotmp;
-    double currentbestcost = LCAcost;
+        TreeIterator* it = genetree->GetPostOrderIterator();
+        while (Node* g = it->next())
+        {
+            if (!g->IsLeaf())
+            {
+                string lbl = g->GetLabel();
+                if (lbl != "")
+                    lbl += "_";
+
+                if (resetLabels)
+                    lbl = "";
+
+                lbl += info.partialMapping[g]->GetLabel();
+
+                if (reconciler.IsDuplication(g, info.partialMapping))
+                {
+                    lbl += "_Dup_nb" + Util::ToString(dup_counter);
+                    dup_counter++;
+
+                    vector< pair<int, Node*> > dups_for_s;
+                    if (dups_per_species.find(info.partialMapping[g]) != dups_per_species.end())
+                        dups_for_s = dups_per_species[info.partialMapping[g]];
+                    pair<int, Node*> p = make_pair(i + 1, g);
+                    dups_for_s.push_back(p);
+                    dups_per_species[info.partialMapping[g]] = dups_for_s;
+                }
+                else
+                    lbl += "_Spec";
+                g->SetLabel(lbl);
+            }
+        }
+        genetree->CloseIterator(it);
+    }
+
+    return dups_per_species;
+}
+
+unordered_map<Node*, Node*> GetGeneSpeciesMapping(vector<Node*> geneTrees, Node* speciesTree, string species_separator, int species_index)
+{
+    //compute gene leaf to species leaf mapping.  Could be faster by using a map for the species leaves by name...
+    unordered_map<Node*, Node*> geneSpeciesMapping;
 
     for (int i = 0; i < geneTrees.size(); i++)
     {
-        Node* g = geneTrees[i];
-        Node* currents;
-        vector<Node*> possibleremapping;
+        unordered_map<Node*, Node*> tmpmap = GeneSpeciesTreeUtil::Instance()->GetGeneSpeciesMappingByLabel(geneTrees[i], speciesTree, species_separator, species_index);
 
-        TreeIterator* it = g->GetPostOrderIterator();
-        while (Node* n = it->next())
+        for (unordered_map<Node*, Node*>::iterator it = tmpmap.begin(); it != tmpmap.end(); ++it)
         {
-            if (!n->IsLeaf())
-            {
-                currents = partialMapping[n];
-                Node* s = currents;
-                if (!s->IsRoot()) {
-                    s = s->GetParent();
-                    while (!s->IsRoot()) {
-                        possibleremapping.push_back(s);
-                        s = s->GetParent();
-                    }
-                    possibleremapping.push_back(s);
-                }
-                while (possibleremapping.size() > 0) {
-                    s = possibleremapping.back();
-                    possibleremapping.pop_back();
-                    //cout << "remap " << n->GetLabel() << " from " << currents->GetLabel() << " to " << s->GetLabel() << endl;
-                    if (IsDuplication(n, partialMapping)) {
-                        int slbl = Util::ToInt(currents->GetLabel());
-                        int dupheight = GetDuplicationHeightUnder(n, currents, partialMapping);
-                        //cout << "is dup" << endl;
-                        hashtable[slbl].remove(dupheight, n->GetLabel());
-                    }
-                    //cout << "before remapping" << endl;
-                    partialMapping[n] = s;
-                    //cout << "after remapping" << endl;
-                    if (IsDuplication(n, partialMapping)) {
-                        int dupheight = GetDuplicationHeightUnder(n, s, partialMapping);
-                        //cout << "is new dup" << endl;
-                        if (dupheight > 0) {
-                            int slbl = Util::ToInt(s->GetLabel());
-                            hashtable[slbl].add_cell(dupheight, n);
-                        }
-                    }
-
-                    if (!n->IsRoot()) {
-                        int slbl = Util::ToInt(s->GetLabel());
-                        int slbl_parent = Util::ToInt(partialMapping[n->GetParent()]->GetLabel());
-                        if (slbl > slbl_parent)
-                        {
-                            minimalNodes.push_back(n->GetParent());
-                        }
-                    }
-
-                    while (minimalNodes.size() > 0) {
-                        for (int j = minimalNodes.size() - 1; j >= 0; j--)
-                        {
-                            Node* m = minimalNodes[j];
-                            Node* currents1 = partialMapping[m];
-                            if (IsDuplication(m, partialMapping)) {
-                                int slbl = Util::ToInt(currents1->GetLabel());
-                                int dupheight = GetDuplicationHeightUnder(m, currents1, partialMapping);
-                                //cout << "remove " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
-                                hashtable[slbl].remove(dupheight, m->GetLabel());
-                                //cout << "removed " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
-                            }
-                            partialMapping.erase(m);
-                            Node* s1 = GetLowestPossibleMapping(m, partialMapping); // should be same as s
-                            //cout << "effected remap " << m->GetLabel() << " from " << currents1->GetLabel() << " to " << s1->GetLabel() << endl;
-                            partialMapping[m] = s1;
-                            int dupheight = GetDuplicationHeightUnder(m, s1, partialMapping);
-                            if (dupheight > 0) {
-                                int slbl = Util::ToInt(s1->GetLabel());
-                                hashtable[slbl].add_cell(dupheight, m);
-                            }
-                            minimalNodes.erase(minimalNodes.begin() + j);
-                            if (!m->IsRoot()) {
-                                int slbl = Util::ToInt(s1->GetLabel());
-                                int slbl_parent = Util::ToInt(partialMapping[m->GetParent()]->GetLabel());
-                                if (slbl > slbl_parent)
-                                {
-                                    //cout << slbl << ">" << slbl_parent << endl;
-                                    //cout << " next is " << m->GetParent()->GetLabel() << endl;
-                                    minimalNodes.push_back(m->GetParent());
-                                }
-                            }
-                        }
-                    }
-                    greedyinfotmp.nbLosses = GetnbLosses(partialMapping);
-                    greedyinfotmp.dupHeightSum = GetdupHeightSum(hashtable);
-                    double tmpcost = greedyinfotmp.GetCost(dupcost, losscost);
-                    if (currentbestcost < tmpcost) {
-                        hashtable = backuphash;
-                        partialMapping = backuppartialMapping;
-                    }
-                    else {
-                        backuphash = hashtable;
-                        backuppartialMapping = partialMapping;
-                        currentbestcost = tmpcost;
-                        greedyinfo.nbLosses = greedyinfotmp.nbLosses;
-                        greedyinfo.dupHeightSum = greedyinfotmp.dupHeightSum;
-                        cout << "Good Remap!" << endl;
-                    }
-
-                }
-            }
-
+            geneSpeciesMapping[it->first] = it->second;
         }
-        g->CloseIterator(it);
     }
-    cout << "After run of Greedy remapping : " << endl;
-    for (int i = 0; i < hashtable.size(); i++) {
-        cout << "Species " << i << " ";
-        hashtable[i].print();
-        //cout << "size " << hashtable[i].size() << endl;
-    }
-    cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
-    cout << " nb Losses of Greedy: " << greedyinfo.nbLosses << " nb Dupheightsum of Greedy : " << greedyinfo.dupHeightSum << endl;
-    cout << " cost of Greedy : " << currentbestcost << endl;
 
-    return greedyinfo;
+    return geneSpeciesMapping;
 }
 
 
-SegmentalReconcileInfo SegmentalReconcile::ReconcileRecursive(SegmentalReconcileInfo& info, unordered_map<Node*, int>& duplicationHeights)
+
+void PrintHelp()
 {
-    //IMPORTANT ASSERTION: partialMapping is clean
+    cout << "------------------------------------------------------------------" << endl
+        << "MULTREC - Multi-reconciliation program " << endl
+        << "------------------------------------------------------------------" << endl
+        << "Multrec takes as input a species tree S, a set of gene trees, a duplication cost, a loss cost and a parameter duplication height h.  The output is a mapping of the gene tree nodes to S that minimizes the segmental reconciliation cost, assuming that there exists such a mapping that has duplications sum-of-heights at most h.  If loss cost >= dup cost, the LCA mapping is returned." << endl
+        << "The leaves of the gene trees must map to the leaves of S.  The gene tree leaves are assumed to have the format [species_name]__[gene_name], for example HUMAN_BRCA2 indicates that the gene is mapped to the leaf of S names HUMAN.  The gene/species separator can be changed with the -spsep argument, and the position of the species name in the gene name with the -spindex argument, indexed at 0.  " << endl
+        << "If your genes are name e.g. GENENAME_SPECIESNAME_OTHERSTUFF, you can set -spsep \"_\" -spindex 1" << endl
+        << endl
+        << "The format of the output is a pseudo-XML format, where the value of each field named NAME_OF_FIELD is surrounded by <NAME_OF_FIELD> and </NAME_OF_FIELD> tags.  Each tag appears on its own line." << endl
+        << "Please look at sample_data/out_sample.txt for an example" << endl
+        << "The fields that are in the output are:" << endl
+        << "COST: the total cost of the mapping" << endl
+        << "DUPHEIGHT: the sum of duplication heights" << endl
+        << "NBLOSSES: the number of losses" << endl
+        << "SPECIESTREE: the species tree newick, with internal nodes labeled by a species id given by the program." << endl
+        << "GENETREES: all the gene tree newick, one per line. Internal nodes are labeled by the mapping and a duplication id.  For instance, an internal node labeled 14_Dup_nb2 means that the node is mapped to species 14, and it is a duplication whose id is Dup_nb2" << endl
+        << "DUPS_PER_SPECIES: each line contains the list of duplications mapped to each species.  For instance, the line '[2] Dup_nb2 (G4) Dup_nb5 (G5)' means that the species with id 2 has two dup nodes mapping to it: the duplication with id Dup_nb2 from the gene tree 4 (that is what the G4 is for), and the duplication with id Dup_nb4 from the gene tree 5." << endl
+        << endl
+        << "If no solution is found (when h is too small), then the output is simply" << endl
+        << "NO SOLUTION FOUND" << endl
+        << endl
+        << "Sample command line:" << endl
+        << "./Multrec -d 10 -l 3 -gf ./sample_data/geneTrees.txt -sf ./sample_data/speciesTree.txt"
+        << endl
+        << "Required arguments:" << endl
+        << "At least one of -g or -gf must be specified, and at least one of -s or -sf must be specified." << endl
+        << "-g   [g1;g2;...;gk]   Here g1,g2,...,gk are gene trees" << endl
+        << "                      represented in Newick format.  " << endl
+        << "                      The gene trees are separated by the ; symbol.	" << endl
+        << "-gf  [file]           file is the name of a file containing the list " << endl
+        << "                      of gene trees, all in Newick format and separated " << endl
+        << "                      by a ; symbol in the file." << endl
+        << "-s   [newick]         The species tree in Newick format." << endl
+        << "-sf  [file]           Name of the file containing species tree Newick." << endl
+        << "" << endl
+        << "Optional arguments:" << endl
+        << "--help                Print this help message." << endl
+        << "-d   [double]         The cost for one height of duplication.  Default=3" << endl
+        << "-l   [double]         The cost for one loss.  Default=1" << endl
+        << "-h   [int]            Maximum allowed duplication sum-of-heights.  Default=20" << endl
+        << "-o   [file]           Output file.  Default=output to console" << endl
+        << "-spsep   [string]     Gene/species separator in the gene names.  Default=__" << endl
+        << "-spindex [int]        Position of the species in the gene names, after " << endl
+        << "                      being split by the gene/species separator.  Default=0" << endl
+        << "--test                Launches a series of unit tests.  This includes small fixed " << endl
+        << "                      examples with known outputs to expect, and larger random trees " << endl
+        << "                      to see if the program terminates in an OK status on more complicated" << endl
+        << "                      datasets.  " << endl;
+}
 
-    //ASSERTION 2 : dupheights is smaller than maxDupheight
-    if (info.dupHeightSum > maxDupHeight)
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+SegmentalReconcileInfo Initialize(map<string, string> args) {
+    SegmentalReconcileInfo info;
+    info.isBad = true;
+
+    vector<Node*> geneTrees;
+    Node* speciesTree = NULL;
+
+    string species_separator = "__";
+    int species_index = 0;
+    double dupcost = 2;
+    double losscost = 1;
+    int maxDupheight = 20;
+
+    //parse dup loss cost and max dup height
+    if (args.find("d") != args.end())
     {
-        SegmentalReconcileInfo retinfo;
-        retinfo.isBad = true;
-        return retinfo;
+        dupcost = Util::ToDouble(args["d"]);
+    }
+    if (args.find("l") != args.end())
+    {
+        losscost = Util::ToDouble(args["l"]);
+    }
+    if (args.find("h") != args.end())
+    {
+        maxDupheight = Util::ToInt(args["h"]);
     }
 
-    //this makes this more of a branch-and-bound algorithm now...
-    if (!currentBestInfo.isBad && currentBestInfo.GetCost(dupcost, losscost) < info.GetCost(dupcost, losscost))
+    string outfile = "";
+    if (args.find("o") != args.end())
     {
-        info.isBad = true;
+        outfile = args["o"];
+    }
+    //parse gene trees, either from command line or from file
+    if (args.find("g") != args.end())
+    {
+        vector<string> gstrs = Util::Split(Util::ReplaceAll(args["g"], "\n", ""), ";", false);
+
+        for (int i = 0; i < gstrs.size(); i++)
+        {
+            string str = gstrs[i];
+            Node* tree = NewickLex::ParseNewickString(str, false);
+
+            if (!tree)
+            {
+                cout << "Error: there is a problem with input gene tree " << str << endl;
+                return info;
+            }
+
+            geneTrees.push_back(tree);
+        }
+    }
+    else if (args.find("gf") != args.end())
+    {
+        string gcontent = Util::GetFileContent(args["gf"]);
+
+        vector<string> lines = Util::Split(gcontent, "\n");
+        vector<string> gstrs;
+        for (int l = 0; l < lines.size(); l++)
+        {
+            vector<string> trees_on_line = Util::Split(lines[l], ";", false);
+            for (int t = 0; t < trees_on_line.size(); t++)
+            {
+                if (trees_on_line[t] != "")
+                    gstrs.push_back(trees_on_line[t]);
+            }
+        }
+
+
+        for (int i = 0; i < gstrs.size(); i++)
+        {
+            string str = gstrs[i];
+            Node* tree = NewickLex::ParseNewickString(str, false);
+
+            if (!tree)
+            {
+                cout << "Error: there is a problem with input gene tree " << str << endl;
+                return info;
+            }
+
+            geneTrees.push_back(tree);
+        }
+    }
+
+
+    //parse species trees, either from command line or from file
+    if (args.find("s") != args.end())
+    {
+        speciesTree = NewickLex::ParseNewickString(args["s"], false);
+
+        if (!speciesTree)
+        {
+            cout << "Error: there is a problem with the species tree." << endl;
+            return info;
+        }
+    }
+    else if (args.find("sf") != args.end())
+    {
+        string scontent = Util::GetFileContent(args["sf"]);
+        speciesTree = NewickLex::ParseNewickString(scontent, false);
+
+        if (!speciesTree)
+        {
+            cout << "Error: there is a problem with the species tree." << endl;
+            return info;
+        }
+    }
+
+
+
+
+    //parse species separator and index
+    if (args.find("spsep") != args.end())
+    {
+        species_separator = args["spsep"];
+    }
+
+    if (args.find("spindex") != args.end())
+    {
+        species_index = Util::ToInt(args["spindex"]);
+    }
+
+
+
+
+    if (geneTrees.size() == 0)
+    {
+        cout << "No gene tree given.  Program will exit." << endl;
+        PrintHelp();
+        return info;
+    }
+    if (!speciesTree)
+    {
+        cout << "No species tree given.  Program will exit." << endl;
+        PrintHelp();
         return info;
     }
 
-
-    //TODO: we could be more clever and avoid recomputing this at every recursion
-    unordered_map<Node*, Node*> partialMapping = info.partialMapping;
-    vector<Node*> minimalNodes = GetMinimalUnmappedNodes(partialMapping);
-
-    if (minimalNodes.size() == 0) //normally, this means the mapping is complete
+    if (dupcost < 0 || losscost <= 0)
     {
-
-        if (currentBestInfo.isBad || info.GetCost(dupcost, losscost) < currentBestInfo.GetCost(dupcost, losscost))
-            currentBestInfo = info;
-
+        cout << "dupcost < 0 or losscost <= 0 are prohibited.  Program will exit." << endl;
         return info;
+    }
+
+    int nbspecies = GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
+    //nbspecies--;
+    string str2 = "<SPECIESTREE>\n" + NewickLex::ToNewickString(speciesTree) + "\n</SPECIESTREE>\n";
+    //cout << "speciesTree2 : " << str2 << endl;
+    //cout << "nbspecies : " << nbspecies << endl;
+    GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(geneTrees);
+    /*for (int i = 0; i < geneTrees.size(); i++) {
+        string str3 = "<GeneTREE>\n" + NewickLex::ToNewickString(geneTrees[i]) + "\n</GeneTREE>\n";
+        cout << str3 << endl;
+    }*/
+    unordered_map<Node*, Node*> geneSpeciesMapping = GetGeneSpeciesMapping(geneTrees, speciesTree, species_separator, species_index);
+
+    SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies);
+
+    info = reconciler.Reconcile();
+
+    string output = "";
+    if (info.isBad)
+    {
+        output = "NO SOLUTION FOUND";
     }
     else
     {
-        Node* lowest = GetLowestMinimalNode(minimalNodes, partialMapping);
+        output += "<COST>\n" + Util::ToString(info.GetCost(dupcost, losscost)) + "\n</COST>\n";
+        output += "<DUPHEIGHT>\n" + Util::ToString(info.dupHeightSum) + "\n</DUPHEIGHT>\n";
+        output += "<NBLOSSES>\n" + Util::ToString(info.nbLosses) + "\n</NBLOSSES>\n";
+        output += "<SPECIESTREE>\n" + NewickLex::ToNewickString(speciesTree) + "\n</SPECIESTREE>\n";
 
-        vector<Node*> sps = GetPossibleSpeciesMapping(lowest, partialMapping);
+        map<Node*, vector< pair<int, Node*> > > dups_per_species = LabelGeneTreesWithSpeciesMapping(geneTrees, speciesTree, reconciler, info, false);
 
-        //we'll try mapping lowest to every possible species, and keep the best
-        SegmentalReconcileInfo bestInfo;
-        bestInfo.nbLosses = 999999;
-        bestInfo.dupHeightSum = 999999;
-        bestInfo.isBad = true;
-
-        for (int i = 0; i < sps.size(); i++)
+        output += "<GENETREES>\n";
+        for (int t = 0; t < geneTrees.size(); t++)
         {
-            int local_nblosses = info.nbLosses;
-            Node* s = sps[i];
-            unordered_map<Node*, Node*> local_partialMapping(partialMapping);   //copy constructor called here
-            unordered_map<Node*, int> local_duplicationHeights(duplicationHeights);   //copy constructor called here
+            output += NewickLex::ToNewickString(geneTrees[t]) + "\n";
+        }
+        output += "</GENETREES>\n";
 
-            local_duplicationHeights[s] = duplicationHeights[s] + 1;    //requires proof, see paper
-
-            local_partialMapping[lowest] = s;
-
-            local_nblosses += GetSpeciesTreeDistance(s, local_partialMapping[lowest->GetChild(0)]);
-            local_nblosses += GetSpeciesTreeDistance(s, local_partialMapping[lowest->GetChild(1)]);
-
-            vector<Node*> new_minimals;
-            //if parent has become minimal, we'll have to add it
-            if (!lowest->IsRoot() && IsMinimalUnmapped(lowest->GetParent(), local_partialMapping))
+        output += "<DUPS_PER_SPECIES>\n";
+        TreeIterator* itsp = speciesTree->GetPostOrderIterator();
+        while (Node* s = itsp->next())
+        {
+            if (dups_per_species.find(s) != dups_per_species.end())
             {
-                new_minimals.push_back(lowest->GetParent());
-            }
+                output += "[" + s->GetLabel() + "] ";
+                vector< pair<int, Node*> > dups_for_s = dups_per_species[s];
 
-            //Map every minimal node that can be mapped to s
-            for (int j = 0; j < minimalNodes.size(); j++)
-            {
-                Node* g = minimalNodes[j];
-
-                if (g != lowest)
+                for (int d = 0; d < dups_for_s.size(); d++)
                 {
-                    Node* sg = GetLowestPossibleMapping(g, local_partialMapping);
+                    pair<int, Node*> p = dups_for_s[d];
+                    string lbl = p.second->GetLabel();
+                    lbl = Util::GetSubstringAfter(lbl, "_");
 
-                    if (sg->HasAncestor(s))
-                    {
-                        local_partialMapping[g] = s;
+                    output += lbl + " (G" + Util::ToString(p.first) + ") ";
 
-                        local_nblosses += GetSpeciesTreeDistance(s, local_partialMapping[g->GetChild(0)]);
-                        local_nblosses += GetSpeciesTreeDistance(s, local_partialMapping[g->GetChild(1)]);
-
-                        if (!g->IsRoot() && IsMinimalUnmapped(g->GetParent(), local_partialMapping))
-                        {
-                            new_minimals.push_back(g->GetParent());
-                        }
-
-                    }
                 }
+                output += "\n";
+            }
+        }
+        speciesTree->CloseIterator(itsp);
+        output += "</DUPS_PER_SPECIES>\n";
+    }
+
+    if (outfile == "")
+        cout << output;
+    else
+        Util::WriteFileContent(outfile, output);
+
+
+
+
+    for (int i = 0; i < geneTrees.size(); i++)
+    {
+        delete geneTrees[i];
+    }
+
+    delete speciesTree;
+
+    return info;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+MultiGeneReconcilerInfo Execute(map<string, string> args)
+{
+    MultiGeneReconcilerInfo info;
+    info.isBad = true;
+
+    vector<Node*> geneTrees;
+    Node* speciesTree = NULL;
+
+    string species_separator = "__";
+    int species_index = 0;
+    double dupcost = 2;
+    double losscost = 1;
+    int maxDupheight = 20;
+
+    //parse dup loss cost and max dup height
+    if (args.find("d") != args.end())
+    {
+        dupcost = Util::ToDouble(args["d"]);
+    }
+    if (args.find("l") != args.end())
+    {
+        losscost = Util::ToDouble(args["l"]);
+    }
+    if (args.find("h") != args.end())
+    {
+        maxDupheight = Util::ToInt(args["h"]);
+    }
+
+    string outfile = "";
+    if (args.find("o") != args.end())
+    {
+        outfile = args["o"];
+    }
+    //parse gene trees, either from command line or from file
+    if (args.find("g") != args.end())
+    {
+        vector<string> gstrs = Util::Split(Util::ReplaceAll(args["g"], "\n", ""), ";", false);
+
+        for (int i = 0; i < gstrs.size(); i++)
+        {
+            string str = gstrs[i];
+            Node* tree = NewickLex::ParseNewickString(str, false);
+
+            if (!tree)
+            {
+                cout << "Error: there is a problem with input gene tree " << str << endl;
+                return info;
             }
 
-            //CLEANUP PHASE
-            int added_losses = CleanupPartialMapping(local_partialMapping, local_duplicationHeights, new_minimals);
-            local_nblosses += added_losses;
+            geneTrees.push_back(tree);
+        }
+    }
+    else if (args.find("gf") != args.end())
+    {
+        string gcontent = Util::GetFileContent(args["gf"]);
 
-            SegmentalReconcileInfo recursiveCallInfo;
-            recursiveCallInfo.dupHeightSum = info.dupHeightSum + 1;
-            recursiveCallInfo.nbLosses = local_nblosses;
-            recursiveCallInfo.partialMapping = local_partialMapping;
-
-            SegmentalReconcileInfo recursiveRetinfo = ReconcileRecursive(recursiveCallInfo, local_duplicationHeights);
-
-            if (!recursiveRetinfo.isBad)
+        vector<string> lines = Util::Split(gcontent, "\n");
+        vector<string> gstrs;
+        for (int l = 0; l < lines.size(); l++)
+        {
+            vector<string> trees_on_line = Util::Split(lines[l], ";", false);
+            for (int t = 0; t < trees_on_line.size(); t++)
             {
-                if (recursiveCallInfo.GetCost(dupcost, losscost) < bestInfo.GetCost(dupcost, losscost))
-                    bestInfo = recursiveRetinfo;
+                if (trees_on_line[t] != "")
+                    gstrs.push_back(trees_on_line[t]);
             }
         }
 
-        return bestInfo;
-    }
 
-}
-
-
-
-
-int SegmentalReconcile::CleanupPartialMapping(unordered_map<Node*, Node*>& partialMapping, unordered_map<Node*, int>& duplicationheights, vector<Node*>& minimalNodes)
-{
-    int nblosses = 0;
-    //CLEANUP PHASE
-    //we want to do: while there is an easy node, map it
-    //at this point, we know that minimals not in new_minimals cannot be speciations, nor mapped to s
-    //so there is no point in checking them.
-    while (minimalNodes.size() > 0)
-    {
-        for (int j = minimalNodes.size() - 1; j >= 0; j--)
+        for (int i = 0; i < gstrs.size(); i++)
         {
-            Node* g = minimalNodes[j];
-            bool canBeSpec = !IsRequiredDuplication(g, partialMapping);
-            bool isEasyDup = IsEasyDuplication(g, partialMapping, duplicationheights);
+            string str = gstrs[i];
+            Node* tree = NewickLex::ParseNewickString(str, false);
 
-            if (canBeSpec || isEasyDup)
+            if (!tree)
             {
-                Node* s = GetLowestPossibleMapping(g, partialMapping);
-
-                partialMapping[g] = s;
-
-                nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
-                nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
-
-                if (canBeSpec)
-                    nblosses -= 2;
-
-                //the parent of g might become minimal - we'll add it in this case.
-                //since we are iterating over new_minimals in the reverse order, this below works
-                if (!g->IsRoot() && IsMinimalUnmapped(g->GetParent(), partialMapping))
-                {
-                    minimalNodes.push_back(g->GetParent());
-                }
+                cout << "Error: there is a problem with input gene tree " << str << endl;
+                return info;
             }
 
-            //no point in considering g from now on - we remove it from further consideration.
-            minimalNodes.erase(minimalNodes.begin() + j);
+            geneTrees.push_back(tree);
         }
     }
 
-    return nblosses;
-}
 
-
-
-bool SegmentalReconcile::IsEasyDuplication(Node* g, unordered_map<Node*, Node*>& partialMapping, unordered_map<Node*, int>& duplicationHeights)
-{
-    if (!IsMinimalUnmapped(g, partialMapping))
+    //parse species trees, either from command line or from file
+    if (args.find("s") != args.end())
     {
-        cout << "Error in IsEasyDuplication: g is not minimal." << endl;
-        throw "Error in IsEasyDuplication: g is not minimal.";
+        speciesTree = NewickLex::ParseNewickString(args["s"], false);
+
+        if (!speciesTree)
+        {
+            cout << "Error: there is a problem with the species tree." << endl;
+            return info;
+        }
+    }
+    else if (args.find("sf") != args.end())
+    {
+        string scontent = Util::GetFileContent(args["sf"]);
+        speciesTree = NewickLex::ParseNewickString(scontent, false);
+
+        if (!speciesTree)
+        {
+            cout << "Error: there is a problem with the species tree." << endl;
+            return info;
+        }
     }
 
-    Node* lca = GetLowestPossibleMapping(g, partialMapping);
-
-    //get dup height of lca under g
-    int d1 = GetDuplicationHeightUnder(g->GetChild(0), lca, partialMapping);
-    int d2 = GetDuplicationHeightUnder(g->GetChild(1), lca, partialMapping);
-
-    int h = 1 + max(d1, d2);
-
-    return (h <= duplicationHeights[lca]);
-
-}
-
-
-int SegmentalReconcile::GetDuplicationHeightUnder(Node* g, Node* species, unordered_map<Node*, Node*>& partialMapping)
-{
-    if (!IsDuplication(g, partialMapping) || partialMapping[g] != species)
-        return 0;
-
-    int d1 = GetDuplicationHeightUnder(g->GetChild(0), species, partialMapping);
-    int d2 = GetDuplicationHeightUnder(g->GetChild(1), species, partialMapping);
-
-    return 1 + max(d1, d2);
-}
 
 
 
-
-bool SegmentalReconcile::IsDuplication(Node* g, unordered_map<Node*, Node*>& partialMapping)
-{
-    if (g->IsLeaf())
-        return false;
-
-    Node* s = partialMapping[g];
-    Node* s1 = partialMapping[g->GetChild(0)];
-    Node* s2 = partialMapping[g->GetChild(1)];
-
-    if (s1->HasAncestor(s2) || s2->HasAncestor(s1))
-        return true;
-
-    if (s != s1->FindLCAWith(s2))
-        return true;
-
-    return false;
-
-}
-
-
-
-vector<Node*> SegmentalReconcile::GetPossibleSpeciesMapping(Node* minimalNode, unordered_map<Node*, Node*>& partialMapping)
-{
-    Node* s = GetLowestPossibleMapping(minimalNode, partialMapping);
-
-    vector<Node*> sps;
-
-    bool done = false;
-    while (!done)
+    //parse species separator and index
+    if (args.find("spsep") != args.end())
     {
-        sps.push_back(s);
+        species_separator = args["spsep"];
+    }
 
-        if (s->IsRoot() || sps.size() >= (int)(dupcost / losscost))
+    if (args.find("spindex") != args.end())
+    {
+        species_index = Util::ToInt(args["spindex"]);
+    }
+
+
+
+
+    if (geneTrees.size() == 0)
+    {
+        cout << "No gene tree given.  Program will exit." << endl;
+        PrintHelp();
+        return info;
+    }
+    if (!speciesTree)
+    {
+        cout << "No species tree given.  Program will exit." << endl;
+        PrintHelp();
+        return info;
+    }
+
+    if (dupcost < 0 || losscost <= 0)
+    {
+        cout << "dupcost < 0 or losscost <= 0 are prohibited.  Program will exit." << endl;
+        return info;
+    }
+
+
+    /*if (losscost >= dupcost)
+    {
+        //do usual lca mapping stuff
+    }
+    else*/
+    {
+
+        if (dupcost / losscost > 20)
         {
-            done = true;
+            cout << "WARNING: dupcost/losscost > 20 or losscost = 0.  Unless your trees are small, the program may not finish before the sun has grown large enough to gobble the earth." << endl;
+        }
+
+        GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
+
+
+        unordered_map<Node*, Node*> geneSpeciesMapping = GetGeneSpeciesMapping(geneTrees, speciesTree, species_separator, species_index);
+
+        MultiGeneReconciler reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight);
+
+        info = reconciler.Reconcile();
+
+        string output = "";
+        if (info.isBad)
+        {
+            output = "NO SOLUTION FOUND";
         }
         else
         {
-            s = s->GetParent();
+            output += "<COST>\n" + Util::ToString(info.GetCost(dupcost, losscost)) + "\n</COST>\n";
+            output += "<DUPHEIGHT>\n" + Util::ToString(info.dupHeightSum) + "\n</DUPHEIGHT>\n";
+            output += "<NBLOSSES>\n" + Util::ToString(info.nbLosses) + "\n</NBLOSSES>\n";
+            output += "<SPECIESTREE>\n" + NewickLex::ToNewickString(speciesTree) + "\n</SPECIESTREE>\n";
+
+            map<Node*, vector< pair<int, Node*> > > dups_per_species = LabelGeneTreesWithSpeciesMapping(geneTrees, speciesTree, reconciler, info, false);
+
+            output += "<GENETREES>\n";
+            for (int t = 0; t < geneTrees.size(); t++)
+            {
+                output += NewickLex::ToNewickString(geneTrees[t]) + "\n";
+            }
+            output += "</GENETREES>\n";
+
+            output += "<DUPS_PER_SPECIES>\n";
+            TreeIterator* itsp = speciesTree->GetPostOrderIterator();
+            while (Node* s = itsp->next())
+            {
+                if (dups_per_species.find(s) != dups_per_species.end())
+                {
+                    output += "[" + s->GetLabel() + "] ";
+                    vector< pair<int, Node*> > dups_for_s = dups_per_species[s];
+
+                    for (int d = 0; d < dups_for_s.size(); d++)
+                    {
+                        pair<int, Node*> p = dups_for_s[d];
+                        string lbl = p.second->GetLabel();
+                        lbl = Util::GetSubstringAfter(lbl, "_");
+
+                        output += lbl + " (G" + Util::ToString(p.first) + ") ";
+
+                    }
+                    output += "\n";
+                }
+            }
+            speciesTree->CloseIterator(itsp);
+            output += "</DUPS_PER_SPECIES>\n";
         }
+
+        if (outfile == "")
+            cout << output;
+        else
+            Util::WriteFileContent(outfile, output);
+
     }
 
-    return sps;
-}
 
 
 
-Node* SegmentalReconcile::GetLowestMinimalNode(vector<Node*>& minimalNodes, unordered_map<Node*, Node*>& partialMapping)
-{
-    Node* curmin = minimalNodes[0];
-    Node* curlca = GetLowestPossibleMapping(curmin, partialMapping);
-
-    for (int i = 1; i < minimalNodes.size(); i++)
-    {
-        Node* lca = GetLowestPossibleMapping(minimalNodes[i], partialMapping);
-
-        //if lowest possible mapping of i-th node is strictly below current, it becomes current
-        if (lca->HasAncestor(curlca) && curlca != lca)
-        {
-            curmin = minimalNodes[i];
-            curlca = lca;
-        }
-    }
-
-    return curmin;
-}
 
 
-
-void SegmentalReconcile::ComputeLCAMapping()
-{
-    lcaMapping.clear();
     for (int i = 0; i < geneTrees.size(); i++)
     {
-        Node* g = geneTrees[i];
+        delete geneTrees[i];
+    }
 
-        TreeIterator* it = g->GetPostOrderIterator();
-        while (Node* n = it->next())
+    delete speciesTree;
+
+
+    return info;
+}
+
+
+
+
+bool RunTest(vector<Node*> geneTrees, Node* speciesTree, unordered_map<Node*, Node*> geneSpeciesMapping,
+    double dupcost, double losscost, int maxDupHeight,
+    int expectedDupHeightSum, int expectedNbLosses, bool isExpectedBad, bool detailed = false)
+{
+    bool ok = true;
+
+    MultiGeneReconciler reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupHeight);
+    MultiGeneReconcilerInfo info = reconciler.Reconcile();
+
+
+
+    if (detailed && !info.isBad)
+    {
+        LabelGeneTreesWithSpeciesMapping(geneTrees, speciesTree, reconciler, info);
+        cout << NewickLex::ToNewickString(speciesTree) << endl;
+        cout << NewickLex::ToNewickString(geneTrees[0]) << endl;
+        cout << NewickLex::ToNewickString(geneTrees[1]) << endl;
+        cout << info.dupHeightSum << " dups + " << info.nbLosses << " losses" << endl;
+    }
+
+    if (!isExpectedBad)
+    {
+        if (info.isBad)
         {
-            if (n->IsLeaf())
+            ok = false;
+            cout << "FAILED: info is bad and I don't know why." << endl;
+        }
+        if (info.dupHeightSum != expectedDupHeightSum)
+        {
+            ok = false;
+            cout << "FAILED: dup height sum should be " << expectedDupHeightSum << " (not " << info.dupHeightSum << ")" << endl;
+        }
+        if (info.nbLosses != expectedNbLosses)
+        {
+            ok = false;
+            cout << "FAILED: losses should be " << expectedNbLosses << " (not " << info.nbLosses << ")" << endl;
+        }
+        double cost = reconciler.GetMappingCost(info.partialMapping);
+        double cost2 = info.dupHeightSum * dupcost + info.nbLosses * losscost;
+        if (cost - cost2 > 0.0000001)
+        {
+            ok = false;
+            cout << "FAILED: reconciler score does not match computed score ("
+                << cost << " vs " << cost2 << ")" << endl;
+        }
+    }
+    else
+    {
+        if (!info.isBad)
+        {
+            ok = false;
+            cout << "FAILED: info is not bad but it should be..." << endl;
+        }
+    }
+
+    return ok;
+}
+
+
+
+
+bool TestRandomTrees()
+{
+    int nbTests = 1;
+    int nbOK = 0;
+
+    cout << endl << "*** TestRandomTrees ***" << endl;
+
+    cout << endl << "(testing " << nbTests << " random instance(s) - this might take a few minutes)" << endl;
+
+    for (int i = 0; i < nbTests; i++)
+    {
+        bool ok = true;
+        //generate random sptree
+        Node* sptree = new Node(false);
+        int sleaves = rand() % 15 + 10;
+        for (int l = 0; l < sleaves; l++)
+        {
+            Node* s = sptree->AddChild();
+            s->SetLabel(Util::ToString(l));
+        }
+        sptree->BinarizeRandomly();
+
+        //generate random gene trees
+        int nbgeneTrees = rand() % 10 + 10;
+        vector<Node*> geneTrees;
+        for (int t = 0; t < nbgeneTrees; t++)
+        {
+            Node* genetree = new Node(false);
+            int gleaves = rand() % (int)(sleaves * 2.5) + 5;
+            for (int j = 0; j < gleaves; j++)
             {
-                lcaMapping[n] = geneSpeciesMapping[n];
+                Node* g = genetree->AddChild();
+                int spindex = rand() % sleaves;
+                g->SetLabel(Util::ToString(spindex) + "__" + Util::ToString(j));
+            }
+            genetree->BinarizeRandomly();
+            geneTrees.push_back(genetree);
+        }
+
+        GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(sptree);
+
+        unordered_map<Node*, Node*> gsMapping = GetGeneSpeciesMapping(geneTrees, sptree, "__", 0);
+
+        MultiGeneReconciler reconciler(geneTrees, sptree, gsMapping, 1, 1, 1000);
+        MultiGeneReconcilerInfo info = reconciler.Reconcile();
+
+        cout << "TEST " << i + 1 << " : random trees: nbSpecies=" << sleaves << " nbGeneTrees=" << geneTrees.size() << endl;
+
+        if (info.isBad)
+        {
+            cout << "FAILED: lca mapping is bad" << endl;
+            ok = false;
+        }
+        else
+        {
+            cout << "PASSED LCA MAPPING" << endl;
+
+            cout << "Testing DUP2 with maxheight=" << min(30, info.dupHeightSum) << endl;
+
+            MultiGeneReconciler reconciler_2(geneTrees, sptree, gsMapping, 2, 1, min(30, info.dupHeightSum));
+            MultiGeneReconcilerInfo info_2 = reconciler_2.Reconcile();
+
+            if (info_2.isBad)
+            {
+                cout << "FAILED: dupcost 2 is bad" << endl;
+                ok = false;
+            }
+            else if (info.dupHeightSum < 30 && info_2.dupHeightSum > info.dupHeightSum)
+            {
+                cout << "FAILED: dupHeightSum 2 > dupHeightSum 1" << endl;
+                ok = false;
             }
             else
             {
-                lcaMapping[n] = lcaMapping[n->GetChild(0)]->FindLCAWith(lcaMapping[n->GetChild(1)]);
+                cout << "PASSED DUPS2 TEST" << endl;
             }
+
+            cout << "Testing DUP5 with maxheight=" << min(10, info.dupHeightSum) << endl;
+
+            MultiGeneReconciler reconciler_3(geneTrees, sptree, gsMapping, 5, 1, min(10, info.dupHeightSum));
+            MultiGeneReconcilerInfo info_3 = reconciler_3.Reconcile();
+
+            cout << "PASSED DUPS5 TEST (hey, it terminated!)" << endl;
+
+
         }
-        g->CloseIterator(it);
+
+
+
+        delete sptree;
+        for (int j = 0; j < geneTrees.size(); j++)
+        {
+            delete geneTrees[j];
+        }
+
+        if (ok)
+            nbOK++;
+
+
     }
+
+    cout << "TOTAL = " << nbOK << "/" << nbTests << endl;
+
+    return 0;
 }
 
 
 
-bool SegmentalReconcile::IsMapped(Node* g, unordered_map<Node*, Node*>& partialMapping)
+void TestBasicInstance()
 {
-    return (partialMapping.find(g) != partialMapping.end());
+    cout << endl << "*** TestBasicInstance ***" << endl;
+
+    map<string, string> args;
+
+    string g1 = "((A__1, C__1),B__1);";
+    string g2 = "((A__2, B__2),B__3);";
+    string snewick = "((A,B),(C,D));";
+
+    vector<Node*> geneTrees;
+    geneTrees.push_back(NewickLex::ParseNewickString(g1));
+    geneTrees.push_back(NewickLex::ParseNewickString(g2));
+
+    Node* speciesTree = NewickLex::ParseNewickString(snewick);
+    GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
+
+    unordered_map<Node*, Node*> gsMapping = GetGeneSpeciesMapping(geneTrees, speciesTree, "__", 0);
+
+
+    int nbOK = 0;
+    int nbTests = 0;
+
+    cout << "TEST 1: delta = 0.2, lambda = 10 (LCA mapping)" << endl;
+    nbTests++;
+    bool ok = RunTest(geneTrees, speciesTree, gsMapping, .2, 10, 20, 2, 5, false);
+    if (ok) { nbOK++;  cout << "PASSED!" << endl; }
+
+
+    cout << "TEST 2: delta = 1 (LCA mapping)" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 1, 1, 20, 2, 5, false);
+    if (ok) { nbOK++;  cout << "PASSED!" << endl; }
+
+    cout << "TEST 3: delta = 2.0001" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 2.0001, 1, 2, 1, 7, false);
+    if (ok) { nbOK++;  cout << "PASSED!" << endl; }
+
+    cout << "TOTAL = " << nbOK << "/" << nbTests << endl;
+
+    for (int i = 0; i < geneTrees.size(); i++)
+    {
+        delete geneTrees[i];
+    }
+
+    delete speciesTree;
 }
 
 
-vector<Node*> SegmentalReconcile::GetMinimalUnmappedNodes(unordered_map<Node*, Node*>& partialMapping)
+
+void TestCaterpillarSpeciesTree()
 {
-    vector<Node*> minimalNodes;
+    cout << endl << "*** TestCaterpillarSpeciesTree ***" << endl << endl;
+
+    map<string, string> args;
+
+    vector<string> slbls;
+    vector<string> g1_labels;
+    vector<string> g2_labels;
+    vector<string> g3_labels;
+
+    for (int i = 1; i <= 10; i++)
+    {
+        slbls.push_back(Util::ToString(i));
+    }
+
+
+    g1_labels.push_back("1");
+    for (int i = 1; i <= 8; i++)
+    {
+        g1_labels.push_back("6");
+    }
+
+
+    g2_labels.push_back("1");
+    for (int i = 2; i <= 5; i++)
+    {
+        g2_labels.push_back(Util::ToString(i));
+        g2_labels.push_back(Util::ToString(i));
+    }
+
+
+    string snewick = NewickLex::GetCaterpillarNewick(slbls);
+    string g1_newick = NewickLex::GetCaterpillarNewick(g1_labels);
+    string g2_newick = NewickLex::GetCaterpillarNewick(g2_labels);
+
+
+    vector<Node*> geneTrees;
+    geneTrees.push_back(NewickLex::ParseNewickString(g1_newick));
+    geneTrees.push_back(NewickLex::ParseNewickString(g2_newick));
+
+    Node* speciesTree = NewickLex::ParseNewickString(snewick);
+    GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
+
+    unordered_map<Node*, Node*> gsMapping = GetGeneSpeciesMapping(geneTrees, speciesTree, "__", 0);
+
+
+    int nbOK = 0;
+    int nbTests = 0;
+
+    bool ok = true;
+
+
+
+
+
+    cout << "Test 1: delta = 1.999" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 1.999, 1, 20, 11, 15, false);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+    cout << "Test 2: delta = 2.0001" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 2.0001, 1, 20, 10, 17, false);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+    cout << "Test 3: delta = 3.9999" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 3.9999, 1, 20, 10, 17, false);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+    cout << "Test 4: delta = 5.0001" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 5.0001, 1, 20, 9, 22, false);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+
+    cout << "Test 5: delta = 23/2 + 0.00001" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 23 / 2 + 0.00001, 1, 20, 7, 38, false);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+
+    cout << "Test 6: delta = 1.00001 but maxdupheight = 7" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 1.00001, 1, 7, 7, 38, true);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+
+    cout << "Test 7: maxdupheight = 6, should be bad" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 20, 1, 6, 7, 38, true);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+
+
+    cout << "Test 8: delta = 0.2, lambda = 10" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, .2, 10, 20, 11, 15, false);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+
+
+    cout << "Test 9: delta = 5.0001 * 10, losses = 1 * 10" << endl;
+    nbTests++;
+    ok = RunTest(geneTrees, speciesTree, gsMapping, 5.0001 * 10, 1 * 10, 20, 9, 22, false);
+    if (ok) { nbOK++; cout << "PASSED!" << endl; }
+
+
+    cout << "TOTAL = " << nbOK << "/" << nbTests << endl;
 
 
     for (int i = 0; i < geneTrees.size(); i++)
     {
-        Node* genetree = geneTrees[i];
-        TreeIterator* it = genetree->GetPostOrderIterator();
-        while (Node* g = it->next())
+        delete geneTrees[i];
+    }
+
+    delete speciesTree;
+}
+
+
+
+
+
+
+
+
+
+int main(int argc, char* argv[])
+{
+
+    map<string, string> args;
+
+    bool hasHelp = false;
+    bool hasTest = false;
+
+    //BUILD DICTIONARY OF ARGS
+    string prevArg = "";
+    for (int i = 0; i < argc; i++)
+    {
+        if (string(argv[i]) == "-v")
         {
-            if (IsMinimalUnmapped(g, partialMapping))
-            {
-                minimalNodes.push_back(g);
-            }
+            verbose = 1;
+            prevArg = "";
         }
-        genetree->CloseIterator(it);
-    }
-
-
-    return minimalNodes;
-}
-
-
-
-bool SegmentalReconcile::IsMinimalUnmapped(Node* g, unordered_map<Node*, Node*>& partialMapping)
-{
-    return (!IsMapped(g, partialMapping) &&
-        IsMapped(g->GetChild(0), partialMapping) &&
-        IsMapped(g->GetChild(1), partialMapping));
-}
-
-
-
-Node* SegmentalReconcile::GetLowestPossibleMapping(Node* g, unordered_map<Node*, Node*>& partialMapping)
-{
-    string err = "";
-    if (g->IsLeaf())
-    {
-        err = "g is a leaf.";
-    }
-    if (IsMapped(g, partialMapping))
-    {
-        err = "g is already mapped.";
-    }
-    if (!IsMapped(g->GetChild(0), partialMapping))
-    {
-        err = "g's child 0 is not mapped.";
-    }
-    if (!IsMapped(g->GetChild(1), partialMapping))
-    {
-        err = "g's child 1 is not mapped.";
-    }
-
-    if (err != "")
-    {
-        cout << "Error in GetLowestPossibleMapping: " << err << endl;
-        throw "Error in GetLowestPossibleMapping: " + err;
-    }
-
-    return partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
-
-}
-
-
-bool SegmentalReconcile::IsRequiredDuplication(Node* g, unordered_map<Node*, Node*>& partialMapping)
-{
-    //See the required duplication Lemma in the paper to see that this works
-
-    if (g->IsLeaf())
-        return false;
-
-    Node* lca = lcaMapping[g];
-    Node* s1 = partialMapping[g->GetChild(0)];
-    Node* s2 = partialMapping[g->GetChild(1)];
-
-    return (lca->HasAncestor(s1) || lca->HasAncestor(s2));
-}
-
-
-int SegmentalReconcile::GetnbLosses(unordered_map<Node*, Node*>& fullMapping)
-{
-    double cost = 0;
-    int nbdups = 0;
-    int nblosses = 0;
-
-    for (int i = 0; i < geneTrees.size(); i++)
-    {
-        Node* genetree = geneTrees[i];
-
-        TreeIterator* it = genetree->GetPostOrderIterator();
-
-        while (Node* g = it->next())
+        else if (string(argv[i]) == "--help")
         {
-            if (!g->IsLeaf())
-            {
-                bool isdup = this->IsDuplication(g, fullMapping);
-
-                int d1 = GetSpeciesTreeDistance(fullMapping[g], fullMapping[g->GetChild(0)]);
-                int d2 = GetSpeciesTreeDistance(fullMapping[g], fullMapping[g->GetChild(1)]);
-
-                int losses_tmp = (double)(d1 + d2);
-                if (!isdup)
-                {
-                    losses_tmp -= 2;
-                }
-                else
-                {
-                    //nbdups++;
-                    //cost += this->dupcost;
-                }
-
-                nblosses += losses_tmp;
-                cost += losses_tmp * this->losscost;
-            }
+            hasHelp = true;
         }
-
-        genetree->CloseIterator(it);
-
-    }
-
-    /*int dupheight = 0;
-
-    //COMPUTE DUP HEIGHTS THE HARD WAY...
-    TreeIterator* its = speciesTree->GetPostOrderIterator();
-    while (Node* s = its->next())
-    {
-        int maxh = 0;
-        for (int i = 0; i < geneTrees.size(); i++)
+        else if (string(argv[i]) == "--test")
         {
-            Node* genetree = geneTrees[i];
-
-            TreeIterator* it = genetree->GetPostOrderIterator();
-            while (Node* g = it->next())
-            {
-                //I know I know this is suboptimal.
-                int h = this->GetDuplicationHeightUnder(g, s, fullMapping);
-                if (h > maxh)
-                    maxh = h;
-            }
-            genetree->CloseIterator(it);
+            hasTest = true;
         }
+        else
+        {
+            if (prevArg != "" && prevArg[0] == '-')
+            {
+                args[Util::ReplaceAll(prevArg, "-", "")] = string(argv[i]);
+            }
 
-        dupheight += maxh;
-
+            prevArg = string(argv[i]);
+        }
     }
-    speciesTree->CloseIterator(its);
 
-    cost += dupheight * this->dupcost;*/
+    //args["test"] = 1;
 
-    return nblosses;
-}
+    if (args.find("test") != args.end() || hasTest)
+    {
+        TestBasicInstance();
+        TestCaterpillarSpeciesTree();
+        TestRandomTrees();
 
+        return 0;
+    }
+    else if (args.find("help") != args.end() || hasHelp)
+    {
+        PrintHelp();
+    }
+    else
+    {
+        //ML's ad-hoc testing stuff for Windows.
+        args["d"] = "5";
+        args["l"] = "0.5";
+        args["gf"] = "sample_data/genetrees.txt";
+        args["sf"] = "sample_data/speciestree.txt";
+        args["o"] = "sample_data/greedyout.txt";
 
-int SegmentalReconcile::GetdupHeightSum(vector<hashlist>& hashtable)
-{
-    int dupHeightSum = 0;
-    for (int i = 0; i < hashtable.size(); i++) {
+        //string str = "(((aves,mamm),arth),prot);";
+
+        //Node* tree = NewickLex::ParseNewickString(str, false);
+
+        //string str1 = NewickLex::ToNewickString(tree, false, false);
+
+        //cout << "Tree : " << str1 << endl;
+
+        Initialize(args);
+        //Execute(args);
         
-        dupHeightSum += hashtable[i].size();
+        return 0;
     }
-    return dupHeightSum;
 }
 
-
-
-double SegmentalReconcile::GetMappingCost(unordered_map<Node*, Node*>& fullMapping)
-{
-    double cost = 0;
-    int nbdups = 0;
-    int nblosses = 0;
-
-    for (int i = 0; i < geneTrees.size(); i++)
-    {
-        Node* genetree = geneTrees[i];
-
-        TreeIterator* it = genetree->GetPostOrderIterator();
-
-        while (Node* g = it->next())
-        {
-            if (!g->IsLeaf())
-            {
-                bool isdup = this->IsDuplication(g, fullMapping);
-
-                int d1 = GetSpeciesTreeDistance(fullMapping[g], fullMapping[g->GetChild(0)]);
-                int d2 = GetSpeciesTreeDistance(fullMapping[g], fullMapping[g->GetChild(1)]);
-
-                int losses_tmp = (double)(d1 + d2);
-                if (!isdup)
-                {
-                    losses_tmp -= 2;
-                }
-                else
-                {
-                    //nbdups++;
-                    //cost += this->dupcost;
-                }
-
-                nblosses += losses_tmp;
-                cost += losses_tmp * this->losscost;
-            }
-        }
-
-        genetree->CloseIterator(it);
-
-    }
-
-    int dupheight = 0;
-
-    //COMPUTE DUP HEIGHTS THE HARD WAY...
-    TreeIterator* its = speciesTree->GetPostOrderIterator();
-    while (Node* s = its->next())
-    {
-        int maxh = 0;
-        for (int i = 0; i < geneTrees.size(); i++)
-        {
-            Node* genetree = geneTrees[i];
-
-            TreeIterator* it = genetree->GetPostOrderIterator();
-            while (Node* g = it->next())
-            {
-                //I know I know this is suboptimal.
-                int h = this->GetDuplicationHeightUnder(g, s, fullMapping);
-                if (h > maxh)
-                    maxh = h;
-            }
-            genetree->CloseIterator(it);
-        }
-
-        dupheight += maxh;
-
-    }
-    speciesTree->CloseIterator(its);
-
-    cost += dupheight * this->dupcost;
-
-    return cost;
-}
-
-
-
-
-int SegmentalReconcile::GetSpeciesTreeDistance(Node* x, Node* y)
-{
-    if (speciesTreeDistances.find(x) != speciesTreeDistances.end())
-    {
-        if (speciesTreeDistances[x].find(y) != speciesTreeDistances[x].end())
-            return speciesTreeDistances[x][y];
-    }
-
-
-    int dist = 99999;
-    Node* d = NULL;
-    Node* a = NULL;   //d = descendant, y = ancestor
-    if (x->HasAncestor(y))
-    {
-        d = x;
-        a = y;
-    }
-    else if (y->HasAncestor(x))
-    {
-        d = y;
-        a = x;
-    }
-
-    if (d && a)
-    {
-        dist = 0;
-
-        while (d != a)
-        {
-            d = d->GetParent();
-            dist++;
-        }
-    }
-
-    speciesTreeDistances[x][y] = dist;
-    speciesTreeDistances[y][x] = dist;
-
-    return dist;
-}
