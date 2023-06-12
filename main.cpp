@@ -196,7 +196,7 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
     vector<Node*> geneTrees;
     Node* speciesTree = NULL;
 
-    string species_separator = "__";
+    string species_separator = "_";
     int species_index = 0;
     double dupcost = 2;
     double losscost = 1;
@@ -438,7 +438,7 @@ MultiGeneReconcilerInfo Execute(map<string, string> args)
     vector<Node*> geneTrees;
     Node* speciesTree = NULL;
 
-    string species_separator = "__";
+    string species_separator = "_";
     int species_index = 0;
     double dupcost = 2;
     double losscost = 1;
@@ -1083,8 +1083,23 @@ int main(int argc, char* argv[])
 
         //cout << "Tree : " << str1 << endl;
 
+        time_t start, end;
+        time(&start);
+
+
         Initialize(args);
         //Execute(args);
+
+        
+
+        // Recording end time.
+        time(&end);
+
+        // Calculating total time taken by the program.
+        double time_taken = double(end - start);
+        cout << "Time taken by program is : " << fixed
+            << time_taken ;
+        cout << " sec " << endl;
         
         return 0;
     }
