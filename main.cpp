@@ -1073,7 +1073,7 @@ int main(int argc, char* argv[])
         args["l"] = "0.1";
         args["gf"] = "sample_data/genetrees.txt";
         args["sf"] = "sample_data/speciestree.txt";
-        args["o"] = "sample_data/lcaout.txt";
+        args["o"] = "sample_data/greedyout.txt";
 
         //string str = "(((aves,mamm),arth),prot);";
 
