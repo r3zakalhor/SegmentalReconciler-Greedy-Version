@@ -108,8 +108,8 @@ SegmentalReconcileInfo SegmentalReconcile::Reconcile()
     }*/
 
     // Here we are able to run ultra greedy or greedy algorithm
-    info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
-    //info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    //info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
     // 
     // 
     //info.dupHeightSum = 0;
@@ -177,20 +177,20 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                         s = possibleremapping.back();
                         possibleremapping.pop_back();
                         //cout << "remap " << n->GetLabel() << " from " << currents->GetLabel() << " to " << s->GetLabel() << endl;
-                        isdup = IsDuplication(n, partialMapping);
+                        isdup = IsDuplication(n, backuppartialMapping);
 
                         //calulate number of losses for n 
                         d1 = GetSpeciesTreeDistance(backuppartialMapping[n], backuppartialMapping[n->GetChild(0)]);
                         d2 = GetSpeciesTreeDistance(backuppartialMapping[n], backuppartialMapping[n->GetChild(1)]);
                         losses_tmp = (double)(d1 + d2);
 
-                        if (isdup) {
+                        if (IsDuplication(n, partialMapping)) {
                             int slbl = Util::ToInt(currents->GetLabel());
                             int dupheight = GetDuplicationHeightUnder(n, currents, partialMapping);
                             //cout << "is dup" << endl;
                             hashtable[slbl].remove(dupheight, n->GetLabel());
                         }
-                        else
+                        if(!isdup)
                         {
                             losses_tmp -= 2;
                         }
@@ -217,14 +217,20 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                             losses_tmp -= 2;
                         }
                         currenttotalnblosses += losses_tmp;
+                        bool check_losses = true;
+                        Node* last_ancestor = n;
 
                         if (!n->IsRoot()) {
                             int slbl = Util::ToInt(s->GetLabel());
                             int slbl_parent = Util::ToInt(partialMapping[n->GetParent()]->GetLabel());
                             //cout << "slbl: " << slbl << " slbl parent " << slbl_parent << endl;
+                            last_ancestor = n->GetParent();
                             if (slbl >= slbl_parent)
                             {
                                 minimalNodes.push_back(n->GetParent());
+                            }
+                            if (slbl == slbl_parent) {
+                                check_losses = false;
                             }
                         }
 
@@ -278,15 +284,44 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                                 if (!m->IsRoot()) {
                                     int slbl = Util::ToInt(s1->GetLabel());
                                     int slbl_parent = Util::ToInt(partialMapping[m->GetParent()]->GetLabel());
+                                    last_ancestor = m->GetParent();
                                     if (slbl >= slbl_parent)
                                     {
                                         //cout << slbl << ">" << slbl_parent << endl;
                                         //cout << " next is " << m->GetParent()->GetLabel() << endl;
                                         minimalNodes.push_back(m->GetParent());
                                     }
+                                    if (slbl == slbl_parent) {
+                                        check_losses = false;
+                                    }
                                 }
                             }
                         }
+
+                        if (check_losses) {
+
+                            isdup = IsDuplication(last_ancestor, backuppartialMapping);
+                            //calulate number of losses for n 
+                            d1 = GetSpeciesTreeDistance(backuppartialMapping[last_ancestor], backuppartialMapping[last_ancestor->GetChild(0)]);
+                            d2 = GetSpeciesTreeDistance(backuppartialMapping[last_ancestor], backuppartialMapping[last_ancestor->GetChild(1)]);
+                            losses_tmp = (double)(d1 + d2);
+                            if (!isdup)
+                            {
+                                losses_tmp -= 2;
+                            }
+                            currenttotalnblosses -= losses_tmp;
+
+                            isdup = IsDuplication(last_ancestor, partialMapping);
+                            //calulate new number of losses for n 
+                            d1 = GetSpeciesTreeDistance(partialMapping[last_ancestor], partialMapping[last_ancestor->GetChild(0)]);
+                            d2 = GetSpeciesTreeDistance(partialMapping[last_ancestor], partialMapping[last_ancestor->GetChild(1)]);
+                            losses_tmp = (double)(d1 + d2);
+                            if (!isdup) {
+                                losses_tmp -= 2;
+                            }
+                            currenttotalnblosses += losses_tmp;
+                        }
+
                         greedyinfotmp.nbLosses = currenttotalnblosses;
                         greedyinfotmp.dupHeightSum = GetdupHeightSum(hashtable);
                         double tmpcost = greedyinfotmp.GetCost(dupcost, losscost);
@@ -371,7 +406,7 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
                 currents = partialMapping[n];
                 Node* s = currents;
                 cntn++;
-                if (cntn % 200 == 0) {
+                if (cntn % 500 == 0) {
                     cout << cntn << endl;
                 }
                 if (!s->IsRoot()) {
@@ -426,14 +461,20 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
                         losses_tmp -= 2;
                     }
                     currenttotalnblosses += losses_tmp;
+                    bool check_losses = true;
+                    Node* last_ancestor = n;
 
                     if (!n->IsRoot()) {
                         int slbl = Util::ToInt(s->GetLabel());
                         int slbl_parent = Util::ToInt(partialMapping[n->GetParent()]->GetLabel());
                         //cout << "slbl: " << slbl << " slbl parent " << slbl_parent << endl;
+                        last_ancestor = n->GetParent();
                         if (slbl >= slbl_parent)
                         {
                             minimalNodes.push_back(n->GetParent());
+                        }
+                        if (slbl == slbl_parent) {
+                            check_losses = false;
                         }
                     }
 
@@ -487,15 +528,44 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
                             if (!m->IsRoot()) {
                                 int slbl = Util::ToInt(s1->GetLabel());
                                 int slbl_parent = Util::ToInt(partialMapping[m->GetParent()]->GetLabel());
+                                last_ancestor = m->GetParent();
                                 if (slbl >= slbl_parent)
                                 {
                                     //cout << slbl << ">" << slbl_parent << endl;
                                     //cout << " next is " << m->GetParent()->GetLabel() << endl;
                                     minimalNodes.push_back(m->GetParent());
                                 }
+                                if (slbl == slbl_parent) {
+                                    check_losses = false;
+                                }
                             }
                         }
                     }
+
+                    if (check_losses) {
+
+                        isdup = IsDuplication(last_ancestor, backuppartialMapping);
+                        //calulate number of losses for n 
+                        d1 = GetSpeciesTreeDistance(backuppartialMapping[last_ancestor], backuppartialMapping[last_ancestor->GetChild(0)]);
+                        d2 = GetSpeciesTreeDistance(backuppartialMapping[last_ancestor], backuppartialMapping[last_ancestor->GetChild(1)]);
+                        losses_tmp = (double)(d1 + d2);
+                        if (!isdup)
+                        {
+                            losses_tmp -= 2;
+                        }
+                        currenttotalnblosses -= losses_tmp;
+
+                        isdup = IsDuplication(last_ancestor, partialMapping);
+                        //calulate new number of losses for n 
+                        d1 = GetSpeciesTreeDistance(partialMapping[last_ancestor], partialMapping[last_ancestor->GetChild(0)]);
+                        d2 = GetSpeciesTreeDistance(partialMapping[last_ancestor], partialMapping[last_ancestor->GetChild(1)]);
+                        losses_tmp = (double)(d1 + d2);
+                        if (!isdup) {
+                            losses_tmp -= 2;
+                        }
+                        currenttotalnblosses += losses_tmp;
+                    }
+
                     greedyinfotmp.nbLosses = currenttotalnblosses;
                     greedyinfotmp.dupHeightSum = GetdupHeightSum(hashtable);
                     double tmpcost = greedyinfotmp.GetCost(dupcost, losscost);
