@@ -9,6 +9,7 @@
 #include "multigenereconciler.h"
 #include "SegmentalReconcile.h"
 
+
 using namespace std;
 
 
@@ -1069,11 +1070,11 @@ int main(int argc, char* argv[])
     else
     {
         //ML's ad-hoc testing stuff for Windows.
-        args["d"] = "10";
-        args["l"] = "0.1";
+        args["d"] = "5";
+        args["l"] = "0.5";
         args["gf"] = "sample_data/genetrees.txt";
         args["sf"] = "sample_data/speciestree.txt";
-        args["o"] = "sample_data/greedyout.txt";
+        args["o"] = "sample_data/truegreedy_small_out.txt";
 
         //string str = "(((aves,mamm),arth),prot);";
 
@@ -1082,7 +1083,6 @@ int main(int argc, char* argv[])
         //string str1 = NewickLex::ToNewickString(tree, false, false);
 
         //cout << "Tree : " << str1 << endl;
-
         time_t start, end;
         time(&start);
 
