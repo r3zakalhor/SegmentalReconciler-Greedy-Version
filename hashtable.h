@@ -43,7 +43,8 @@ using namespace std;
 class hashlist
 {
 private:
-    vector< vector<Node *> > listofheights;
+    //vector< vector<Node *> > listofheights;
+    vector< unordered_set<Node*> > listofheights;
 public:
 
     hashlist()
@@ -72,15 +73,18 @@ public:
            //cout << "previous size " << previoussize << " newsize " << newsize << endl;
            listofheights.resize(newsize);
         }
-        listofheights[newdupheight].push_back(g);
+        listofheights[newdupheight].insert(g);
     }
 
-    bool remove(int dupheight, string nodelabel)
+    bool remove(int dupheight, Node* g)
     {
         if (dupheight < listofheights.size()) {
-            auto it = std::next(listofheights.begin(), dupheight);
-            for (int j = 0; j < listofheights[dupheight].size(); j++) {
-                if (it->operator [](j)->GetLabel() == nodelabel) {
+            //auto it = std::next(listofheights.begin(), dupheight);
+            /*unordered_set<Node*>::iterator itr;
+            //for (int j = 0; j < listofheights[dupheight].size(); j++) {
+            for (itr = listofheights[dupheight].begin(); itr != listofheights[dupheight].end(); itr++){
+                //if (it->operator [](j)->GetLabel() == nodelabel) {
+                if ((*itr)->GetLabel() == g->GetLabel()) {
                     listofheights[dupheight].erase(listofheights[dupheight].begin() + j);
                     if (dupheight == listofheights.size() - 1 && listofheights[dupheight].empty()) {
                         int newsize = dupheight;
@@ -88,8 +92,15 @@ public:
                     }
                     return true;
                 }
+            }*/
+            listofheights[dupheight].erase(g);
+            if (dupheight == listofheights.size() - 1 && listofheights[dupheight].empty()) {
+                int newsize = dupheight;
+                listofheights.resize(newsize);
             }
+            return true;
         }
+        //listofheights[dupheight].erase(g);
         return false;
     }
 
@@ -100,13 +111,16 @@ public:
         else {
             for (int i = 1; i < listofheights.size(); i++) {
                 cout << " dup heights of " << i << " are : ";
-                auto it = std::next(listofheights.begin(), i);
+                /*auto it = std::next(listofheights.begin(), i);
                 for (int j = 0; j < listofheights[i].size(); j++) {
                 //for (std::list<Node*>::iterator it = listofheights[i].begin(); it != listofheights[i].end(); ++it) {
                     //std::cout << *it << ' '; // You can access elements calling the operator[] , you need an iterator.
                     cout << it->operator [](j)->GetLabel() << ", ";
                     //cout << listofheights[i][j].liGetLabel() << ", "; // You can access elements calling the operator[] , you need an iterator.
-                }
+                }*/
+                unordered_set<Node *>::iterator itr;
+                for (itr = listofheights[i].begin(); itr != listofheights[i].end(); itr++)
+                    cout << (*itr)->GetLabel() << ", ";
                 cout << "          " << endl;
             }
         }
