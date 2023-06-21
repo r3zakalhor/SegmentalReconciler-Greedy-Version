@@ -19,7 +19,7 @@ SegmentalReconcileInfo SegmentalReconcile::Reconcile()
     ComputeLCAMapping();
 
     unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
-
+    Node* gg;
     unordered_map<Node*, int> duplicationHeights;
     TreeIterator* it = speciesTree->GetPostOrderIterator();
     while (Node* s = it->next())
@@ -54,6 +54,7 @@ SegmentalReconcileInfo SegmentalReconcile::Reconcile()
                 //cout << " s " << slbl << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
                 //g->SetDup(true);
                 hashtable[slbl].add_cell(dupheight, g);
+                gg = g;
             }
                 //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
                 //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
@@ -71,7 +72,7 @@ SegmentalReconcileInfo SegmentalReconcile::Reconcile()
         }
     }
 
-
+    
     for (int i = 0; i < hashtable.size(); i++) {
         cout << "Species " << i << " ";
         hashtable[i].print();
@@ -188,7 +189,7 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                             int slbl = Util::ToInt(currents->GetLabel());
                             int dupheight = GetDuplicationHeightUnder(n, currents, partialMapping);
                             //cout << "is dup" << endl;
-                            hashtable[slbl].remove(dupheight, n->GetLabel());
+                            hashtable[slbl].remove(dupheight, n);
                         }
                         if(!isdup)
                         {
@@ -255,7 +256,7 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                                     int slbl = Util::ToInt(currents1->GetLabel());
                                     int dupheight = GetDuplicationHeightUnder(m, currents1, partialMapping);
                                     //cout << "remove " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
-                                    hashtable[slbl].remove(dupheight, m->GetLabel());
+                                    hashtable[slbl].remove(dupheight, m);
                                     //cout << "removed " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
                                 }
 
@@ -432,7 +433,7 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
                         int slbl = Util::ToInt(currents->GetLabel());
                         int dupheight = GetDuplicationHeightUnder(n, currents, partialMapping);
                         //cout << "is dup" << endl;
-                        hashtable[slbl].remove(dupheight, n->GetLabel());
+                        hashtable[slbl].remove(dupheight, n);
                     }
                     else
                     {
@@ -499,7 +500,7 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
                                 int slbl = Util::ToInt(currents1->GetLabel());
                                 int dupheight = GetDuplicationHeightUnder(m, currents1, partialMapping);
                                 //cout << "remove " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
-                                hashtable[slbl].remove(dupheight, m->GetLabel());
+                                hashtable[slbl].remove(dupheight, m);
                                 //cout << "removed " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
                             }
 
