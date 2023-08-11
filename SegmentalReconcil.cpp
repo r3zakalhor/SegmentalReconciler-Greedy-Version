@@ -1,6 +1,6 @@
 #include "SegmentalReconcile.h"
 
-SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies)
+SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, string algorithm)
 {
     this->geneTrees = geneTrees;
     this->speciesTree = speciesTree;
@@ -9,6 +9,7 @@ SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTr
     this->losscost = losscost;
     this->maxDupHeight = maxDupHeight;
     this->nbspecies = nbspecies;
+    this->algorithm = algorithm;
     hashtable.resize(nbspecies);
 }
 
@@ -16,6 +17,25 @@ SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTr
 
 SegmentalReconcileInfo SegmentalReconcile::Reconcile()
 {
+    SegmentalReconcileInfo info;
+    
+    if (algorithm == "lca") {
+        info = lca_algorithm();
+        return info;
+    }
+    else if (algorithm == "simphy") {
+        info = simphy_algorithm();
+        return info;
+    }
+    else if (algorithm == "greedy") {
+        info = greedy_algorithm();
+        return info;
+    }
+    else if (algorithm == "ultragreedy") {
+        info = ultragreedy_algorithm();
+        return info;
+    }
+
     ComputeLCAMapping();
 
     unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
@@ -43,7 +63,11 @@ SegmentalReconcileInfo SegmentalReconcile::Reconcile()
             //bool isEasyDup = IsEasyDuplication(g, partialMapping, duplicationheights);
             //if (canBeSpec || isEasyDup)
             //{
+            
             Node* s = GetLowestPossibleMapping(g, partialMapping);
+            
+            //Node* s = GetSimphyMapping(g, partialMapping);
+            //cout << " s " << s->GetLabel() << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
             numofnodes++;
             partialMapping[g] = s;
             dupheight = GetDuplicationHeightUnder(g, s, partialMapping);
@@ -95,6 +119,458 @@ SegmentalReconcileInfo SegmentalReconcile::Reconcile()
     cout << " Number of Nodes : " << numofnodes << endl;
 
 
+    
+    info.dupHeightSum = dupheightsum;
+    info.nbLosses = nblosses;
+    info.isBad = false;
+    bool improve = true;
+    int numofruns = 0;
+    /*while (improve)
+    {
+        cost = info.GetCost(dupcost, losscost);
+        info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+        numofruns++;
+    }*/
+
+    // Here we are able to run ultra greedy or greedy algorithm
+    //info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    //info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    // 
+    // 
+    //info.dupHeightSum = 0;
+    //info.nbLosses = added_losses;
+    cout << "Number of Runs of Greedy: " << numofruns << endl;
+    info.partialMapping = partialMapping;
+
+    //SegmentalReconcileInfo retinfo = ReconcileRecursive(info, duplicationHeights);
+
+    return info;
+}
+
+SegmentalReconcileInfo SegmentalReconcile::lca_algorithm() {
+
+    ComputeLCAMapping();
+
+    unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
+    Node* gg;
+    unordered_map<Node*, int> duplicationHeights;
+    TreeIterator* it = speciesTree->GetPostOrderIterator();
+    while (Node* s = it->next())
+    {
+        duplicationHeights[s] = 0;
+    }
+    speciesTree->CloseIterator(it);
+
+    vector<Node*> minimalNodes = GetMinimalUnmappedNodes(partialMapping);
+    int dupheight = 0;
+    int numofnodes = 0;
+    //int added_losses = CleanupPartialMapping(partialMapping, duplicationHeights, minimalNodes);
+
+    while (minimalNodes.size() > 0)
+    {
+        for (int j = minimalNodes.size() - 1; j >= 0; j--)
+        {
+            Node* g = minimalNodes[j];
+            //g->SetDup(false);
+            //bool canBeSpec = !IsRequiredDuplication(g, partialMapping);
+            //bool isEasyDup = IsEasyDuplication(g, partialMapping, duplicationheights);
+            //if (canBeSpec || isEasyDup)
+            //{
+
+            Node* s = GetLowestPossibleMapping(g, partialMapping);
+
+            //Node* s = GetSimphyMapping(g, partialMapping);
+            //cout << " s " << s->GetLabel() << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+            numofnodes++;
+            partialMapping[g] = s;
+            dupheight = GetDuplicationHeightUnder(g, s, partialMapping);
+            //cout << " slbl " << s->GetLabel();
+            if (dupheight > 0) {
+                int slbl = Util::ToInt(s->GetLabel());
+                int glbl = Util::ToInt(g->GetLabel());
+                //cout << " s " << slbl << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+                //g->SetDup(true);
+                hashtable[slbl].add_cell(dupheight, g);
+                gg = g;
+            }
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
+            //if (canBeSpec)
+                //nblosses -= 2;
+            //the parent of g might become minimal - we'll add it in this case.
+            //since we are iterating over new_minimals in the reverse order, this below works
+            if (!g->IsRoot() && IsMinimalUnmapped(g->GetParent(), partialMapping))
+            {
+                minimalNodes.push_back(g->GetParent());
+            }
+            //}
+            //no point in considering g from now on - we remove it from further consideration.
+            minimalNodes.erase(minimalNodes.begin() + j);
+        }
+    }
+
+
+    /*for (int i = 0; i < hashtable.size(); i++) {
+        cout << "Species " << i << " ";
+        hashtable[i].print();
+        //cout << "size " << hashtable[i].size() << endl;
+    }*/
+
+    int nblosses = GetnbLosses(partialMapping);
+    int dupheightsum = GetdupHeightSum(hashtable);
+    //cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
+    //cout << " nb Losses of LCA : " << nblosses << " nb Dupheightsum of LCA : " << dupheightsum << endl;
+
+
+    currentBestInfo.dupHeightSum = dupheightsum;
+    currentBestInfo.nbLosses = nblosses;
+    currentBestInfo.isBad = true;
+    double cost = currentBestInfo.GetCost(dupcost, losscost);
+
+    //cout << " cost of LCA : " << cost << endl;
+
+    //cout << " Number of Nodes : " << numofnodes << endl;
+
+
+    SegmentalReconcileInfo info;
+    info.dupHeightSum = dupheightsum;
+    info.nbLosses = nblosses;
+    info.isBad = false;
+    bool improve = true;
+    int numofruns = 0;
+    /*while (improve)
+    {
+        cost = info.GetCost(dupcost, losscost);
+        info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+        numofruns++;
+    }*/
+
+    // Here we are able to run ultra greedy or greedy algorithm
+    //info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    //info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    // 
+    // 
+    //info.dupHeightSum = 0;
+    //info.nbLosses = added_losses;
+    //cout << "Number of Runs of Greedy: " << numofruns << endl;
+    info.partialMapping = partialMapping;
+
+    //SegmentalReconcileInfo retinfo = ReconcileRecursive(info, duplicationHeights);
+    cout << "LCA reconciliation is finished!" << endl;
+    return info;
+}
+
+SegmentalReconcileInfo SegmentalReconcile::simphy_algorithm() {
+
+    ComputeLCAMapping();
+
+    unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
+    Node* gg;
+    unordered_map<Node*, int> duplicationHeights;
+    TreeIterator* it = speciesTree->GetPostOrderIterator();
+    while (Node* s = it->next())
+    {
+        duplicationHeights[s] = 0;
+    }
+    speciesTree->CloseIterator(it);
+
+    vector<Node*> minimalNodes = GetMinimalUnmappedNodes(partialMapping);
+    int dupheight = 0;
+    int numofnodes = 0;
+    //int added_losses = CleanupPartialMapping(partialMapping, duplicationHeights, minimalNodes);
+
+    while (minimalNodes.size() > 0)
+    {
+        for (int j = minimalNodes.size() - 1; j >= 0; j--)
+        {
+            Node* g = minimalNodes[j];
+            //g->SetDup(false);
+            //bool canBeSpec = !IsRequiredDuplication(g, partialMapping);
+            //bool isEasyDup = IsEasyDuplication(g, partialMapping, duplicationheights);
+            //if (canBeSpec || isEasyDup)
+            //{
+
+            //Node* s = GetLowestPossibleMapping(g, partialMapping);
+
+            Node* s = GetSimphyMapping(g, partialMapping);
+            //cout << " s " << s->GetLabel() << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+            numofnodes++;
+            partialMapping[g] = s;
+            dupheight = GetDuplicationHeightUnder(g, s, partialMapping);
+            //cout << " slbl " << s->GetLabel();
+            if (dupheight > 0) {
+                int slbl = Util::ToInt(s->GetLabel());
+                int glbl = Util::ToInt(g->GetLabel());
+                //cout << " s " << slbl << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+                //g->SetDup(true);
+                hashtable[slbl].add_cell(dupheight, g);
+                gg = g;
+            }
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
+            //if (canBeSpec)
+                //nblosses -= 2;
+            //the parent of g might become minimal - we'll add it in this case.
+            //since we are iterating over new_minimals in the reverse order, this below works
+            if (!g->IsRoot() && IsMinimalUnmapped(g->GetParent(), partialMapping))
+            {
+                minimalNodes.push_back(g->GetParent());
+            }
+            //}
+            //no point in considering g from now on - we remove it from further consideration.
+            minimalNodes.erase(minimalNodes.begin() + j);
+        }
+    }
+
+
+    /*for (int i = 0; i < hashtable.size(); i++) {
+        cout << "Species " << i << " ";
+        hashtable[i].print();
+        //cout << "size " << hashtable[i].size() << endl;
+    }*/
+
+    int nblosses = GetnbLosses(partialMapping);
+    int dupheightsum = GetdupHeightSum(hashtable);
+    //cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
+    //cout << " nb Losses of LCA : " << nblosses << " nb Dupheightsum of LCA : " << dupheightsum << endl;
+
+
+    currentBestInfo.dupHeightSum = dupheightsum;
+    currentBestInfo.nbLosses = nblosses;
+    currentBestInfo.isBad = true;
+    double cost = currentBestInfo.GetCost(dupcost, losscost);
+
+    //cout << " cost of LCA : " << cost << endl;
+
+    //cout << " Number of Nodes : " << numofnodes << endl;
+
+
+    SegmentalReconcileInfo info;
+    info.dupHeightSum = dupheightsum;
+    info.nbLosses = nblosses;
+    info.isBad = false;
+    bool improve = true;
+    int numofruns = 0;
+    /*while (improve)
+    {
+        cost = info.GetCost(dupcost, losscost);
+        info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+        numofruns++;
+    }*/
+
+    // Here we are able to run ultra greedy or greedy algorithm
+    //info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    //info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    // 
+    // 
+    //info.dupHeightSum = 0;
+    //info.nbLosses = added_losses;
+    //cout << "Number of Runs of Greedy: " << numofruns << endl;
+    info.partialMapping = partialMapping;
+
+    //SegmentalReconcileInfo retinfo = ReconcileRecursive(info, duplicationHeights);
+    cout << "simphy reconciliation is finished!" << endl;
+    return info;
+}
+
+SegmentalReconcileInfo SegmentalReconcile::greedy_algorithm() {
+
+    ComputeLCAMapping();
+
+    unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
+    Node* gg;
+    unordered_map<Node*, int> duplicationHeights;
+    TreeIterator* it = speciesTree->GetPostOrderIterator();
+    while (Node* s = it->next())
+    {
+        duplicationHeights[s] = 0;
+    }
+    speciesTree->CloseIterator(it);
+
+    vector<Node*> minimalNodes = GetMinimalUnmappedNodes(partialMapping);
+    int dupheight = 0;
+    int numofnodes = 0;
+    //int added_losses = CleanupPartialMapping(partialMapping, duplicationHeights, minimalNodes);
+
+    while (minimalNodes.size() > 0)
+    {
+        for (int j = minimalNodes.size() - 1; j >= 0; j--)
+        {
+            Node* g = minimalNodes[j];
+            //g->SetDup(false);
+            //bool canBeSpec = !IsRequiredDuplication(g, partialMapping);
+            //bool isEasyDup = IsEasyDuplication(g, partialMapping, duplicationheights);
+            //if (canBeSpec || isEasyDup)
+            //{
+
+            Node* s = GetLowestPossibleMapping(g, partialMapping);
+
+            //Node* s = GetSimphyMapping(g, partialMapping);
+            //cout << " s " << s->GetLabel() << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+            numofnodes++;
+            partialMapping[g] = s;
+            dupheight = GetDuplicationHeightUnder(g, s, partialMapping);
+            //cout << " slbl " << s->GetLabel();
+            if (dupheight > 0) {
+                int slbl = Util::ToInt(s->GetLabel());
+                int glbl = Util::ToInt(g->GetLabel());
+                //cout << " s " << slbl << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+                //g->SetDup(true);
+                hashtable[slbl].add_cell(dupheight, g);
+                gg = g;
+            }
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
+            //if (canBeSpec)
+                //nblosses -= 2;
+            //the parent of g might become minimal - we'll add it in this case.
+            //since we are iterating over new_minimals in the reverse order, this below works
+            if (!g->IsRoot() && IsMinimalUnmapped(g->GetParent(), partialMapping))
+            {
+                minimalNodes.push_back(g->GetParent());
+            }
+            //}
+            //no point in considering g from now on - we remove it from further consideration.
+            minimalNodes.erase(minimalNodes.begin() + j);
+        }
+    }
+
+
+    /*for (int i = 0; i < hashtable.size(); i++) {
+        cout << "Species " << i << " ";
+        hashtable[i].print();
+        //cout << "size " << hashtable[i].size() << endl;
+    }*/
+
+    int nblosses = GetnbLosses(partialMapping);
+    int dupheightsum = GetdupHeightSum(hashtable);
+    //cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
+    //cout << " nb Losses of LCA : " << nblosses << " nb Dupheightsum of LCA : " << dupheightsum << endl;
+
+
+    currentBestInfo.dupHeightSum = dupheightsum;
+    currentBestInfo.nbLosses = nblosses;
+    currentBestInfo.isBad = true;
+    double cost = currentBestInfo.GetCost(dupcost, losscost);
+
+    //cout << " cost of LCA : " << cost << endl;
+
+    //cout << " Number of Nodes : " << numofnodes << endl;
+
+
+    SegmentalReconcileInfo info;
+    info.dupHeightSum = dupheightsum;
+    info.nbLosses = nblosses;
+    info.isBad = false;
+    bool improve = true;
+    int numofruns = 0;
+    /*while (improve)
+    {
+        cost = info.GetCost(dupcost, losscost);
+        info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+        numofruns++;
+    }*/
+
+    // Here we are able to run ultra greedy or greedy algorithm
+    info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    //info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    // 
+    // 
+    //info.dupHeightSum = 0;
+    //info.nbLosses = added_losses;
+    //cout << "Number of Runs of Greedy: " << numofruns << endl;
+    info.partialMapping = partialMapping;
+
+    //SegmentalReconcileInfo retinfo = ReconcileRecursive(info, duplicationHeights);
+    cout << "greedy reconciliation is finished!" << endl;
+    return info;
+}
+
+SegmentalReconcileInfo SegmentalReconcile::ultragreedy_algorithm() {
+
+    ComputeLCAMapping();
+
+    unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
+    Node* gg;
+    unordered_map<Node*, int> duplicationHeights;
+    TreeIterator* it = speciesTree->GetPostOrderIterator();
+    while (Node* s = it->next())
+    {
+        duplicationHeights[s] = 0;
+    }
+    speciesTree->CloseIterator(it);
+
+    vector<Node*> minimalNodes = GetMinimalUnmappedNodes(partialMapping);
+    int dupheight = 0;
+    int numofnodes = 0;
+    //int added_losses = CleanupPartialMapping(partialMapping, duplicationHeights, minimalNodes);
+
+    while (minimalNodes.size() > 0)
+    {
+        for (int j = minimalNodes.size() - 1; j >= 0; j--)
+        {
+            Node* g = minimalNodes[j];
+            //g->SetDup(false);
+            //bool canBeSpec = !IsRequiredDuplication(g, partialMapping);
+            //bool isEasyDup = IsEasyDuplication(g, partialMapping, duplicationheights);
+            //if (canBeSpec || isEasyDup)
+            //{
+
+            Node* s = GetLowestPossibleMapping(g, partialMapping);
+
+            //Node* s = GetSimphyMapping(g, partialMapping);
+            //cout << " s " << s->GetLabel() << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+            numofnodes++;
+            partialMapping[g] = s;
+            dupheight = GetDuplicationHeightUnder(g, s, partialMapping);
+            //cout << " slbl " << s->GetLabel();
+            if (dupheight > 0) {
+                int slbl = Util::ToInt(s->GetLabel());
+                int glbl = Util::ToInt(g->GetLabel());
+                //cout << " s " << slbl << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
+                //g->SetDup(true);
+                hashtable[slbl].add_cell(dupheight, g);
+                gg = g;
+            }
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
+            //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
+            //if (canBeSpec)
+                //nblosses -= 2;
+            //the parent of g might become minimal - we'll add it in this case.
+            //since we are iterating over new_minimals in the reverse order, this below works
+            if (!g->IsRoot() && IsMinimalUnmapped(g->GetParent(), partialMapping))
+            {
+                minimalNodes.push_back(g->GetParent());
+            }
+            //}
+            //no point in considering g from now on - we remove it from further consideration.
+            minimalNodes.erase(minimalNodes.begin() + j);
+        }
+    }
+
+
+    /*for (int i = 0; i < hashtable.size(); i++) {
+        cout << "Species " << i << " ";
+        hashtable[i].print();
+        //cout << "size " << hashtable[i].size() << endl;
+    }*/
+
+    int nblosses = GetnbLosses(partialMapping);
+    int dupheightsum = GetdupHeightSum(hashtable);
+    //cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
+    //cout << " nb Losses of LCA : " << nblosses << " nb Dupheightsum of LCA : " << dupheightsum << endl;
+
+
+    currentBestInfo.dupHeightSum = dupheightsum;
+    currentBestInfo.nbLosses = nblosses;
+    currentBestInfo.isBad = true;
+    double cost = currentBestInfo.GetCost(dupcost, losscost);
+
+    //cout << " cost of LCA : " << cost << endl;
+
+    //cout << " Number of Nodes : " << numofnodes << endl;
+
+
     SegmentalReconcileInfo info;
     info.dupHeightSum = dupheightsum;
     info.nbLosses = nblosses;
@@ -115,14 +591,13 @@ SegmentalReconcileInfo SegmentalReconcile::Reconcile()
     // 
     //info.dupHeightSum = 0;
     //info.nbLosses = added_losses;
-    cout << "Number of Runs of Greedy: " << numofruns << endl;
+    //cout << "Number of Runs of Greedy: " << numofruns << endl;
     info.partialMapping = partialMapping;
 
     //SegmentalReconcileInfo retinfo = ReconcileRecursive(info, duplicationHeights);
-
+    cout << "ultragreedy reconciliation is finished!" << endl;
     return info;
 }
-
 
 SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve)
 {
@@ -363,7 +838,7 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
         currentbestcost = bestgreedyinfo.GetCost(dupcost, losscost);
         cout << " number of remapping: " << num << endl;
     }
-    cout << "After run of Greedy remapping : " << endl;
+    /*cout << "After run of Greedy remapping : " << endl;
     for (int i = 0; i < hashtable.size(); i++) {
         cout << "Species " << i << " ";
         hashtable[i].print();
@@ -371,7 +846,7 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
     }
     cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
     cout << " nb Losses of Greedy: " << bestgreedyinfo.nbLosses << " nb Dupheightsum of Greedy : " << bestgreedyinfo.dupHeightSum << endl;
-    cout << " cost of Greedy : " << currentbestcost << endl;
+    cout << " cost of Greedy : " << currentbestcost << endl;*/
 
     return bestgreedyinfo;
 }
@@ -591,7 +1066,7 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
         }
         g->CloseIterator(it);
     }
-    cout << "After run of Greedy remapping : " << endl;
+    /*cout << "After run of Greedy remapping : " << endl;
     for (int i = 0; i < hashtable.size(); i++) {
         cout << "Species " << i << " ";
         hashtable[i].print();
@@ -599,7 +1074,7 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
     }
     cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
     cout << " nb Losses of Greedy: " << greedyinfo.nbLosses << " nb Dupheightsum of Greedy : " << greedyinfo.dupHeightSum << endl;
-    cout << " cost of Greedy : " << currentbestcost << endl;
+    cout << " cost of Greedy : " << currentbestcost << endl;*/
 
     return greedyinfo;
 }
@@ -960,6 +1435,100 @@ Node* SegmentalReconcile::GetLowestPossibleMapping(Node* g, unordered_map<Node*,
         cout << "Error in GetLowestPossibleMapping: " << err << endl;
         throw "Error in GetLowestPossibleMapping: " + err;
     }
+
+    return partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
+
+}
+
+Node* SegmentalReconcile::GetSimphyMapping(Node* g, unordered_map<Node*, Node*>& partialMapping)
+{
+    string err = "";
+    if (g->IsLeaf())
+    {
+        err = "g is a leaf.";
+    }
+    if (IsMapped(g, partialMapping))
+    {
+        err = "g is already mapped.";
+    }
+    if (!IsMapped(g->GetChild(0), partialMapping))
+    {
+        err = "g's child 0 is not mapped.";
+    }
+    if (!IsMapped(g->GetChild(1), partialMapping))
+    {
+        err = "g's child 1 is not mapped.";
+    }
+
+    if (err != "")
+    {
+        cout << "Error in GetLowestPossibleMapping: " << err << endl;
+        throw "Error in GetLowestPossibleMapping: " + err;
+    }
+    char separator = '-';
+    int i = 0;
+    string glbl = g->GetLabel();
+    bool flag = false;
+    bool flag2 = false;
+    string s = glbl;
+    //cout << glbl << endl;
+    /*while (glbl[i] != '\0') {
+        if (glbl[i] != separator && !flag) {
+            // Append the char to the temp string.
+            s += glbl[i];
+        }
+        else {
+            flag = true;
+        }
+        i++;
+    }*/
+    /*if (!flag) {
+        return partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
+    }*/
+    //else {
+
+    char delimiter = '_';
+
+    // Create a stringstream from the input string
+    std::stringstream ss(s);
+
+    std::vector<std::string> tokens;
+    std::string token;
+
+    // Tokenize the input string by the delimiter and store each token in the vector
+    while (std::getline(ss, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    string species;
+    //cout << "mapped to " << endl;
+    for (const auto& t : tokens) {
+        //std::cout << t << std::endl;
+        species = t;
+    }
+    //cout << species << endl;
+    Node * look_species_ = partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
+
+    while (!look_species_->IsRoot()) {
+
+        string look_species = look_species_->GetLabel();
+        // Find the position of the first occurrence of the delimiter
+        size_t pos = look_species.find(separator);
+        if (pos != std::string::npos) {
+            // Extract the substring just before the delimiter
+            look_species = look_species.substr(0, pos);
+            //std::cout << "Result: " << look_species << std::endl;
+        }
+
+        if (species == look_species) {
+            //cout << "simphy mapped to: "<< look_species << endl;
+            return look_species_;
+        }
+        if(!look_species_->IsRoot())
+            look_species_ = look_species_->GetParent();
+    }
+    //cout << "simphy mapped to: " << look_species_->GetLabel() << endl;
+    return look_species_;
+    //}
 
     return partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
 
