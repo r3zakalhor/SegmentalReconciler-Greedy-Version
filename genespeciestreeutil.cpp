@@ -472,6 +472,61 @@ int GeneSpeciesTreeUtil::LabelInternalNodesUniquely(vector<Node*> trees)
 }
 
 
+
+int GeneSpeciesTreeUtil::CountNodes(Node* tree)
+{
+    vector<Node*> v;
+    v.push_back(tree);
+    int cpt = CountNodes(v);
+    return cpt;
+}
+
+int GeneSpeciesTreeUtil::CountNodes(vector<Node*> trees)
+{
+    int cpt = 0;
+
+    //counter starts at lowest available integer
+    for (int t = 0; t < trees.size(); t++)
+    {
+        TreeIterator* it = trees[t]->GetPostOrderIterator(true);
+
+        while (Node* n = it->next())
+        {
+            if (Util::IsInt(n->GetLabel()))
+            {
+                int q = Util::ToInt(n->GetLabel());
+
+                if (q >= cpt)
+                    cpt = q + 1;
+            }
+        }
+        trees[t]->CloseIterator(it);
+    }
+
+    for (int t = 0; t < trees.size(); t++)
+    {
+        TreeIterator* it = trees[t]->GetPostOrderIterator();
+
+        while (Node* n = it->next())
+        {
+            if (!n->IsLeaf())
+            {
+                string lbl = n->GetLabel();
+                if (lbl != "")
+                    lbl += "-";
+                lbl += Util::ToString(cpt);
+
+                //n->SetLabel(lbl);
+
+                cpt++;
+            }
+        }
+
+        trees[t]->CloseIterator(it);
+    }
+    return cpt;
+}
+
 void GeneSpeciesTreeUtil::LabelInternalNodesWithLCAMapping(Node* geneTree, Node* speciesTree, unordered_map<Node*, Node*> lca_mapping)
 {
     TreeIterator* it = geneTree->GetPostOrderIterator();
