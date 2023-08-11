@@ -56,7 +56,7 @@ public:
      * @param losscost The cost for each loss.
      * @param maxDupHeight The maximum allowable duplication height.
      */
-    SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies);
+    SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, string algorithm);
 
     /**
      * @brief Reconcile
@@ -65,13 +65,18 @@ public:
      * @return
      */
     SegmentalReconcileInfo Reconcile();
-
+    SegmentalReconcileInfo lca_algorithm();
+    SegmentalReconcileInfo simphy_algorithm();
+    SegmentalReconcileInfo greedy_algorithm();
+    SegmentalReconcileInfo ultragreedy_algorithm();
     /**
      * @brief GetMappingCost
      * @param fullMapping A mapping of each node of each gene tree to the species tree.  We assume this mapping is valid without checking.
      * @return The total segmental dup + loss cost.
      */
     double GetMappingCost(unordered_map<Node*, Node*>& fullMapping);
+
+    int GetnbLossesexceptgenetree(unordered_map<Node*, Node*>& fullMapping, int genetreenum);
 
     int GetnbLosses(unordered_map<Node*, Node*>& fullMapping);
 
@@ -94,6 +99,7 @@ private:
     double losscost;
     int maxDupHeight;
     int nbspecies;
+    string algorithm;
     vector<hashlist> hashtable;
 
     //Main recursive function for the computation of a mapping.  Takes the partial mapping in info and tries to map additional
@@ -116,10 +122,14 @@ private:
     //returns the lsit of unmapped nodes whose two children are mapped
     vector<Node*> GetMinimalUnmappedNodes(unordered_map<Node*, Node*>& partialMapping);
 
-    SegmentalReconcileInfo GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist> hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost);
+    SegmentalReconcileInfo GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+
+    SegmentalReconcileInfo UltraGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool *improve);
 
     //returns the lowest node of the species tree on which g can be mapped, ie the lca of the mappings of the 2 children of g
     Node* GetLowestPossibleMapping(Node* g, unordered_map<Node*, Node*>& partialMapping);
+
+    Node* GetSimphyMapping(Node* g, unordered_map<Node*, Node*>& partialMapping);
 
     //false iff mapping g anywhere valid makes it a duplication
     bool IsRequiredDuplication(Node* g, unordered_map<Node*, Node*>& partialMapping);
