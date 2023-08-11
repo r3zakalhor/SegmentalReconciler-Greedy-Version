@@ -158,6 +158,7 @@ void PrintHelp()
         << endl
         << "Required arguments:" << endl
         << "At least one of -g or -gf must be specified, and at least one of -s or -sf must be specified." << endl
+        << "-al [lca, greedy, ultragreedy, simphy] specify algorithm mapping" << endl
         << "-g   [g1;g2;...;gk]   Here g1,g2,...,gk are gene trees" << endl
         << "                      represented in Newick format.  " << endl
         << "                      The gene trees are separated by the ; symbol.	" << endl
@@ -197,6 +198,7 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
     vector<Node*> geneTrees;
     Node* speciesTree = NULL;
 
+    string algorithm;
     string species_separator = "_";
     int species_index = 0;
     double dupcost = 2;
@@ -216,7 +218,10 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
     {
         maxDupheight = Util::ToInt(args["h"]);
     }
-
+    if (args.find("al") != args.end())
+    {
+        algorithm = args["al"];
+    }
     string outfile = "";
     if (args.find("o") != args.end())
     {
@@ -332,20 +337,34 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
         cout << "dupcost < 0 or losscost <= 0 are prohibited.  Program will exit." << endl;
         return info;
     }
+    //cout << algorithm << endl;
+    string all[4] = { "lca", "greedy", "ultragreedy", "simphy" };
+    bool flagx = false;
+    for (int i = 0; i < 4; i++) {
+        if (algorithm == all[i]) {
+            flagx = true;
+        }
+    }
+    if (!flagx) {
+        cout << "wrong algorithm is entered!" << endl;
+        return info;
+    }
 
-    int nbspecies = GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
+    //int nbspecies = GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
+    int nbspecies = GeneSpeciesTreeUtil::Instance()->CountNodes(speciesTree);
+    //int nbspecies = 52;
     //nbspecies--;
     string str2 = "<SPECIESTREE>\n" + NewickLex::ToNewickString(speciesTree) + "\n</SPECIESTREE>\n";
     //cout << "speciesTree2 : " << str2 << endl;
     //cout << "nbspecies : " << nbspecies << endl;
-    GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(geneTrees);
+    //GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(geneTrees);
     /*for (int i = 0; i < geneTrees.size(); i++) {
         string str3 = "<GeneTREE>\n" + NewickLex::ToNewickString(geneTrees[i]) + "\n</GeneTREE>\n";
         cout << str3 << endl;
     }*/
     unordered_map<Node*, Node*> geneSpeciesMapping = GetGeneSpeciesMapping(geneTrees, speciesTree, species_separator, species_index);
 
-    SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies);
+    SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies, algorithm);
 
     info = reconciler.Reconcile();
 
@@ -1070,11 +1089,12 @@ int main(int argc, char* argv[])
     else
     {
         //ML's ad-hoc testing stuff for Windows.
-        args["d"] = "5";
+        /*args["d"] = "5";
         args["l"] = "0.5";
-        args["gf"] = "sample_data/genetrees.txt";
-        args["sf"] = "sample_data/speciestree.txt";
-        args["o"] = "sample_data/truegreedy_small_out.txt";
+        args["gf"] = "sample_data/all_genetrees2_edited.txt";
+        args["sf"] = "sample_data/s_tree.newick";
+        args["o"] = "sample_data/out_simphy.txt";
+        args["al"] = "simphy";*/
 
         //string str = "(((aves,mamm),arth),prot);";
 
