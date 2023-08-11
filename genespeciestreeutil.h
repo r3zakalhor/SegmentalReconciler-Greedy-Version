@@ -77,6 +77,9 @@ public:
     int LabelInternalNodesUniquely(Node* tree);
     int LabelInternalNodesUniquely(vector<Node*> trees);
 
+    int CountNodes(Node* tree);
+    int CountNodes(vector<Node*> trees);
+
     string GetPrunedSpeciesTreeNewick(string gcontent, string scontent);
 };
 
