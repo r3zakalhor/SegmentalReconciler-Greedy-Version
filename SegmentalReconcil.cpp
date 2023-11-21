@@ -1,6 +1,7 @@
 #include "SegmentalReconcile.h"
 
-SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, string algorithm)
+
+SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, int nbgenes, string algorithm)
 {
     this->geneTrees = geneTrees;
     this->speciesTree = speciesTree;
@@ -9,8 +10,25 @@ SegmentalReconcile::SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTr
     this->losscost = losscost;
     this->maxDupHeight = maxDupHeight;
     this->nbspecies = nbspecies;
+    this->nbgenes = nbgenes;
     this->algorithm = algorithm;
     hashtable.resize(nbspecies);
+    DupChanges = new int*[nbgenes];
+    LossChanges = new int*[nbgenes];
+    Chain = new int* [nbgenes];
+    for (int i = 0; i < nbgenes; ++i) {
+        DupChanges[i] = new int[nbspecies];
+        LossChanges[i] = new int[nbspecies];
+        Chain[i] = new int[nbspecies];
+    }
+    
+    TDupChanges = new int** [nbgenes];
+    for (int i = 0; i < nbgenes; i++) {
+        TDupChanges[i] = new int* [nbspecies];
+        for (int j = 0; j < nbspecies; j++) {
+            TDupChanges[i][j] = new int[nbspecies];
+        }
+    }
 }
 
 
@@ -378,7 +396,6 @@ SegmentalReconcileInfo SegmentalReconcile::greedy_algorithm() {
     ComputeLCAMapping();
 
     unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
-    Node* gg;
     unordered_map<Node*, int> duplicationHeights;
     TreeIterator* it = speciesTree->GetPostOrderIterator();
     while (Node* s = it->next())
@@ -417,7 +434,6 @@ SegmentalReconcileInfo SegmentalReconcile::greedy_algorithm() {
                 //cout << " s " << slbl << " g " << g->GetLabel() << " dupheight " << dupheight << endl;
                 //g->SetDup(true);
                 hashtable[slbl].add_cell(dupheight, g);
-                gg = g;
             }
             //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(0)]);
             //nblosses += GetSpeciesTreeDistance(s, partialMapping[g->GetChild(1)]);
@@ -472,7 +488,8 @@ SegmentalReconcileInfo SegmentalReconcile::greedy_algorithm() {
     }*/
 
     // Here we are able to run ultra greedy or greedy algorithm
-    info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    //info = GreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
+    info = FastGreedyRemapping(partialMapping, hashtable, Chain, TDupChanges, DupChanges, LossChanges, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
     //info = UltraGreedyRemapping(partialMapping, hashtable, geneTrees, speciesTree, cost, dupcost, losscost, &improve);
     // 
     // 
@@ -599,12 +616,316 @@ SegmentalReconcileInfo SegmentalReconcile::ultragreedy_algorithm() {
     return info;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int SegmentalReconcile::CalculateCostChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double dupcost, double losscost) {
+
+    int slbl = Util::ToInt(s->GetLabel());
+    Node* mu = partialMapping[n];
+    int mu_lbl = Util::ToInt(mu->GetLabel());
+    int mu_index = mu->GetIndex();
+    int g_index = n->GetIndex();
+    int s_index = s->GetIndex();
+
+    int delta_dup = 0;
+
+    int slbl_parent = slbl;
+    Node* mpu = mu;
+    int mpu_index = mu_index;
+    int g_parent_index = g_index;
+
+    if (!n->IsRoot()) {
+        slbl_parent = Util::ToInt(partialMapping[n->GetParent()]->GetLabel());
+        mpu = partialMapping[n->GetParent()];
+        mpu_index = mpu->GetIndex();
+        g_parent_index = (n->GetParent())->GetIndex();
+    }
+
+    if (!n->IsRoot() && mu_index == mpu_index)
+        Chain[g_index][mu_index] = Chain[g_parent_index][mu_index] + 1;
+    else
+        Chain[g_index][mu_index] = 1;
+
+    // dup changes
+    if (n->IsRoot() || slbl < slbl_parent) {
+        Chain[g_index][s_index] = 1;
+        TDupChanges[g_index][s_index][s_index] = std::max(Chain[g_index][s_index], hashtable[slbl].size()) - hashtable[slbl].size();
+        if (hashtable[slbl].is_unique_max(n))
+            TDupChanges[g_index][s_index][mu_index] = -1;
+        else 
+            TDupChanges[g_index][s_index][mu_index] = 0;
+        DupChanges[g_index][s_index] = TDupChanges[g_index][s_index][s_index] + TDupChanges[g_index][s_index][mu_index];
+    }
+    else {
+        /*if (slbl == slbl_parent) {
+            Chain[g_parent_index][s_index] = 1;
+        }
+        else {
+            Chain[g_index][s_index] = Chain[g_parent_index][s_index] + 1;
+        }*/
+        Chain[g_index][s_index] = Chain[g_parent_index][s_index] + 1;
+        TDupChanges[g_index][s_index][s_index] = std::max(Chain[g_index][s_index], hashtable[slbl].size()) - hashtable[slbl].size();
+        if (mu->GetLabel() < mpu->GetLabel())
+            TDupChanges[g_parent_index][s_index][mu_index] = 0;
+        else
+            TDupChanges[g_parent_index][s_index][mu_index] = TDupChanges[g_parent_index][s_index][mpu_index];
+        if (mu->GetLabel() == mpu->GetLabel()) {
+            int hprim = hashtable[mu_lbl].size() + TDupChanges[g_parent_index][s_index][mu_index];
+            int hmu = hashtable[mu_lbl].dupheight_at_subtree(n);
+            int tmp = 0;
+            if (hprim == hmu && hashtable[mu_lbl].is_unique_element(n,hprim))
+                tmp = -1;
+            TDupChanges[g_index][s_index][mu_index] = TDupChanges[g_parent_index][s_index][mu_index] + tmp;
+        }
+        else {
+            if(hashtable[slbl].is_unique_max(n))
+                TDupChanges[g_index][s_index][mu_index] = -1;
+            else 
+                TDupChanges[g_index][s_index][mu_index] = 0;
+        }
+        if (mpu_index == s_index) {
+            DupChanges[g_parent_index][s_index] = 0;
+            TDupChanges[g_parent_index][s_index][s_index] = 0;
+            TDupChanges[g_parent_index][s_index][mu_index] = 0;
+        }
+        DupChanges[g_index][s_index] = DupChanges[g_parent_index][s_index] - TDupChanges[g_parent_index][s_index][s_index] - TDupChanges[g_parent_index][s_index][mu_index] +
+            TDupChanges[g_index][s_index][s_index] + TDupChanges[g_index][s_index][mu_index];
+
+        if (DupChanges[g_index][s_index] > 100) {
+            cout << "TDupChanges[g_parent_index][s_index][mu_index] " << TDupChanges[g_parent_index][s_index][mu_index] << endl;
+            cout << "g_parent_index: " << g_parent_index << "s_index: " << s_index << endl;
+        }
+    }
+
+    // loss changes
+    int imu = 0;
+    int impu = 0;
+    int im_us_pu = 0;
+
+    if (IsDuplication(n, partialMapping))
+        imu = 0;
+    else
+        imu = 2;
+
+    if (!n->IsRoot()) {
+        if (IsDuplication(n->GetParent(), partialMapping))
+            impu = 0;
+        else
+            impu = 2;
+
+        partialMapping[n] = s;
+        if (IsDuplication(n->GetParent(), partialMapping))
+            im_us_pu = 0;
+        else
+            im_us_pu = 2;
+        partialMapping[n] = mu;
+    }
+
+    int lambda = GetSpeciesTreeDistance(s, partialMapping[n->GetChild(0)]) + GetSpeciesTreeDistance(s, partialMapping[n->GetChild(1)]) -
+        GetSpeciesTreeDistance(mu, partialMapping[n->GetChild(0)]) - GetSpeciesTreeDistance(mu, partialMapping[n->GetChild(1)]) + imu;
+    if (n->IsRoot()) {
+        LossChanges[g_index][s_index] = lambda;
+    }
+    else if (slbl <= slbl_parent) {
+        LossChanges[g_index][s_index] = lambda + GetSpeciesTreeDistance(s, mpu) - im_us_pu - GetSpeciesTreeDistance(mu, mpu) + impu;
+    }
+    else if (slbl > slbl_parent) {
+        LossChanges[g_index][s_index] = LossChanges[g_parent_index][s_index] + lambda - GetSpeciesTreeDistance(s, mu);
+    }
+
+
+
+    int costchange = LossChanges[g_index][s_index] * losscost + DupChanges[g_index][s_index] * dupcost;
+
+    return costchange;
+}
+
+int SegmentalReconcile::ApplyChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable) {
+
+    vector<Node*> minimalNodes;
+    minimalNodes.push_back(n);
+
+    while (minimalNodes.size() > 0) {
+        for (int j = minimalNodes.size() - 1; j >= 0; j--)
+        {
+            Node* m = minimalNodes[j];
+            Node* currents = partialMapping[m];
+
+            if (IsDuplication(m, partialMapping)) {
+                int slbl = Util::ToInt(currents->GetLabel());
+                int dupheight = GetDuplicationHeightUnder(m, currents, partialMapping);
+                //cout << "remove " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
+                bool fl = hashtable[slbl].remove(dupheight, m);
+            }
+
+
+            partialMapping.erase(m);
+
+            //cout << "effected remap " << m->GetLabel() << " from " << currents1->GetLabel() << " to " << s1->GetLabel() << endl;
+            partialMapping[m] = s;
+
+            int dupheight = GetDuplicationHeightUnder(m, s, partialMapping);
+            if (dupheight > 0) {
+                int slbl = Util::ToInt(s->GetLabel());
+                hashtable[slbl].add_cell(dupheight, m);
+            }
+
+            minimalNodes.erase(minimalNodes.begin() + j);
+
+            if (!m->IsRoot()) {
+                int slbl = Util::ToInt(s->GetLabel());
+                int slbl_parent = Util::ToInt(partialMapping[m->GetParent()]->GetLabel());
+                if (slbl >= slbl_parent)
+                {
+                    //cout << slbl << ">" << slbl_parent << endl;
+                    //cout << " next is " << m->GetParent()->GetLabel() << endl;
+                    minimalNodes.push_back(m->GetParent());
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+SegmentalReconcileInfo SegmentalReconcile::FastGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve)
+{
+    int BestCostChange, CurrentCostChange;
+    BestCostChange = 0;
+    vector<Node*> minimalNodes;
+    SegmentalReconcileInfo greedyinfo;
+    bool remap_find = false;
+    Node* BestChange[2];
+
+
+    ofstream myfile;
+    myfile.open("example.txt");
+
+    int cntn = 0;
+    int loop = 1;
+    *improve = true;
+    bool newremmap = true;
+    myfile << "start!" << endl;
+    while (newremmap) {
+        BestCostChange = 0;
+        cntn = 0;
+        newremmap = false;
+        for (int i = 0; i < geneTrees.size(); i++)
+        {
+            Node* g = geneTrees[i];
+            Node* currents;
+            vector<Node*> possibleremapping;
+
+            TreeIterator* it = g->GetPreOrderIterator();
+            while (Node* n = it->next())
+            {
+                myfile << "index: " << Util::ToString(n->GetIndex()) << endl;
+                if (!n->IsLeaf())
+                {
+                    currents = partialMapping[n];
+                    Node* s = currents;
+
+                    Node* mu = partialMapping[n];
+                    int mu_index = mu->GetIndex();
+                    int g_index = n->GetIndex();
+                    Node* mpu = mu;
+                    int mpu_index = mu_index;
+                    int g_parent_index = g_index;
+
+                    if (!n->IsRoot()) {
+                        mpu = partialMapping[n->GetParent()];
+                        mpu_index = mpu->GetIndex();
+                        g_parent_index = (n->GetParent())->GetIndex();
+                    }
+                    if (!n->IsRoot() && mu_index == mpu_index)
+                        Chain[g_index][mu_index] = Chain[g_parent_index][mu_index] + 1;
+                    else
+                        Chain[g_index][mu_index] = 1;
+
+
+                    cntn++;
+                    if (cntn % 2000 == 0) {
+                        cout << cntn << endl;
+                    }
+                    if (!s->IsRoot()) {
+                        s = s->GetParent();
+                        while (!s->IsRoot()) {
+                            possibleremapping.push_back(s);
+                            s = s->GetParent();
+                        }
+                        possibleremapping.push_back(s);
+                    }
+                    while (possibleremapping.size() > 0) {
+                        s = possibleremapping.back();
+                        possibleremapping.pop_back();
+
+                        //cout << "remap " << n->GetLabel() << " from " << currents->GetLabel() << " to " << s->GetLabel() << endl;
+                        
+                        CurrentCostChange = CalculateCostChange(n, s, partialMapping, hashtable, Chain, TDupChanges, DupChanges, LossChanges, geneTrees, speciesTree, dupcost, losscost);
+                        myfile << "gene index: " << Util::ToString(n->GetIndex()) << " from " << Util::ToString(currents->GetIndex()) << " -> " << Util::ToString(s->GetIndex()) 
+                            << " Dup change: " << Util::ToString(DupChanges[n->GetIndex()][s->GetIndex()]) << " loss change: " << Util::ToString(LossChanges[n->GetIndex()][s->GetIndex()]) 
+                            << " cost change: "<< CurrentCostChange << endl;
+                        
+                        if (CurrentCostChange <= BestCostChange) {
+                            BestCostChange = CurrentCostChange;
+                            BestChange[0] = n;  
+                            BestChange[1] = s;
+                            newremmap = true;
+                            remap_find = true;
+                            cout << "Good Remap!" << endl;
+                            cout << "gene index: " << Util::ToString(n->GetIndex()) << " from " << Util::ToString(currents->GetIndex()) << " -> " << Util::ToString(s->GetIndex()) << endl;
+                        }
+
+                    }
+
+                }
+
+            }
+            g->CloseIterator(it);
+        }
+        if (remap_find) {
+            ApplyChange(BestChange[0], BestChange[1], partialMapping, hashtable);
+            myfile << "at iteration: " << loop << "gene index: " << Util::ToString(BestChange[0]->GetIndex()) << " -> " << Util::ToString(BestChange[1]->GetIndex()) << " Cost change: " << BestCostChange << endl;
+            loop++;
+            remap_find = false;
+        }
+    }
+    /*cout << "After run of Greedy remapping : " << endl;
+    for (int i = 0; i < hashtable.size(); i++) {
+        cout << "Species " << i << " ";
+        hashtable[i].print();
+        //cout << "size " << hashtable[i].size() << endl;
+    }
+    cout << "/////////////////////////////////////////////////////////////////////////////////////" << endl;
+    cout << " nb Losses of Greedy: " << bestgreedyinfo.nbLosses << " nb Dupheightsum of Greedy : " << bestgreedyinfo.dupHeightSum << endl;
+    cout << " cost of Greedy : " << currentbestcost << endl;*/
+    greedyinfo.dupHeightSum = GetdupHeightSum(hashtable);
+    greedyinfo.nbLosses = GetnbLosses(partialMapping);
+    double Cost = greedyinfo.GetCost(dupcost, losscost);
+
+    return greedyinfo;
+}
+
+
+/// <summary>
+/// ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// </summary>
+/// <param name="partialMapping"></param>
+/// <param name="hashtable"></param>
+/// <param name="geneTrees"></param>
+/// <param name="speciesTree"></param>
+/// <param name="LCAcost"></param>
+/// <param name="dupcost"></param>
+/// <param name="losscost"></param>
+/// <param name="improve"></param>
+/// <returns></returns>
+
 SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve)
 {
     vector<hashlist> backuphash = hashtable;
     unordered_map<Node*, Node*> backuppartialMapping = partialMapping;
     vector<hashlist> besthash = hashtable;
     unordered_map<Node*, Node*> bestpartialMapping = partialMapping;
+
     vector<Node*> minimalNodes;
     SegmentalReconcileInfo backupgreedyinfo, bestgreedyinfo;
     backupgreedyinfo.dupHeightSum = GetdupHeightSum(hashtable);
@@ -614,6 +935,17 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
     int currenttotalnblosses = backupgreedyinfo.nbLosses;
     int currentbestnblosses = backupgreedyinfo.nbLosses;
     SegmentalReconcileInfo greedyinfotmp;
+
+    Triple T;
+    vector<Triple> modify_add;
+    vector<Triple> modify_remove;
+    unordered_map<Node*, Node*> firstmap;
+    unordered_map<Node*, Node*> currentmap;
+    unordered_map<Node*, Node*> remap;
+    unordered_map<Node*, Node*> remap1;
+    ofstream myfile;
+    myfile.open("example.txt");
+
     double currentbestcost = LCAcost;
     int cntn = 0;
     bool isdup;
@@ -636,9 +968,11 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                 if (!n->IsLeaf())
                 {
                     currents = partialMapping[n];
+                    firstmap[n] = currents;
+                    myfile << "1.firstmap[n]: " << n->GetLabel() << " to " << currents->GetLabel() << endl;
                     Node* s = currents;
                     cntn++;
-                    if (cntn % 500 == 0) {
+                    if (cntn % 2000 == 0) {
                         cout << cntn << endl;
                     }
                     if (!s->IsRoot()) {
@@ -664,15 +998,24 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                             int slbl = Util::ToInt(currents->GetLabel());
                             int dupheight = GetDuplicationHeightUnder(n, currents, partialMapping);
                             //cout << "is dup" << endl;
-                            hashtable[slbl].remove(dupheight, n);
+                            bool fl = hashtable[slbl].remove(dupheight, n);
+                            /*if (fl) {
+                                T.slbl = slbl;
+                                T.dupHeight = dupheight;
+                                T.n = n;
+                                modify_add.push_back(T);
+                            }*/
                         }
                         if(!isdup)
                         {
                             losses_tmp -= 2;
                         }
+
                         currenttotalnblosses -= losses_tmp;
                         //cout << "before remapping" << endl;
                         partialMapping[n] = s;
+                        remap[n] = s;
+                        myfile << "1.remap[n]: " << n->GetLabel() << " to " << s->GetLabel() << endl;
                         //cout << "after remapping" << endl;
                         isdup = IsDuplication(n, partialMapping);
                         //calulate new number of losses for n 
@@ -686,6 +1029,10 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                             if (dupheight > 0) {
                                 int slbl = Util::ToInt(s->GetLabel());
                                 hashtable[slbl].add_cell(dupheight, n);
+                                /*T.slbl = slbl;
+                                T.dupHeight = dupheight;
+                                T.n = n;
+                                modify_remove.push_back(T);*/
                             }
                         }
                         else
@@ -715,7 +1062,8 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                             {
                                 Node* m = minimalNodes[j];
                                 Node* currents1 = partialMapping[m];
-
+                                currentmap[m] = currents1;
+                                myfile << "2.currentmap[m]: " << m->GetLabel() << " to " << currents1->GetLabel() << endl;
                                 isdup = IsDuplication(m, backuppartialMapping);
 
                                 //calulate number of losses for n 
@@ -731,7 +1079,13 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                                     int slbl = Util::ToInt(currents1->GetLabel());
                                     int dupheight = GetDuplicationHeightUnder(m, currents1, partialMapping);
                                     //cout << "remove " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
-                                    hashtable[slbl].remove(dupheight, m);
+                                    bool fl = hashtable[slbl].remove(dupheight, m);
+                                    /*if (fl) {
+                                        T.slbl = slbl;
+                                        T.dupHeight = dupheight;
+                                        T.n = n;
+                                        modify_add.push_back(T);
+                                    }*/
                                     //cout << "removed " << dupheight << ", " << m->GetLabel() << " from " << slbl << endl;
                                 }
 
@@ -740,7 +1094,8 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                                 Node* s1 = GetLowestPossibleMapping(m, partialMapping); // should be same as s
                                 //cout << "effected remap " << m->GetLabel() << " from " << currents1->GetLabel() << " to " << s1->GetLabel() << endl;
                                 partialMapping[m] = s1;
-
+                                remap[m] = s1;
+                                myfile << "2.remap[m]: " << m->GetLabel() << " to " << s1->GetLabel() << endl;
                                 isdup = IsDuplication(m, partialMapping);
                                 //calulate new number of losses for n 
                                 d1 = GetSpeciesTreeDistance(partialMapping[m], partialMapping[m->GetChild(0)]);
@@ -755,6 +1110,10 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                                 if (dupheight > 0) {
                                     int slbl = Util::ToInt(s1->GetLabel());
                                     hashtable[slbl].add_cell(dupheight, m);
+                                    /*T.slbl = slbl;
+                                    T.dupHeight = dupheight;
+                                    T.n = n;
+                                    modify_remove.push_back(T);*/
                                 }
                                 minimalNodes.erase(minimalNodes.begin() + j);
                                 if (!m->IsRoot()) {
@@ -802,15 +1161,48 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                         greedyinfotmp.dupHeightSum = GetdupHeightSum(hashtable);
                         double tmpcost = greedyinfotmp.GetCost(dupcost, losscost);
                         if (currentbestcost <= tmpcost) {
-                            hashtable = backuphash;
-                            partialMapping = backuppartialMapping;
+                            hashtable = backuphash; // X
+                            /*while (modify_remove.size() > 0) {
+                                T = modify_remove.back();
+                                modify_remove.pop_back();
+                                hashtable[T.slbl].remove(T.dupHeight, T.n);
+                            }
+                            while (modify_add.size() > 0) {
+                                T = modify_add.back();
+                                modify_add.pop_back();
+                                hashtable[T.slbl].add_cell(T.dupHeight, T.n);
+                            }*/
+
+                            //partialMapping = backuppartialMapping;
+                            for (auto x : firstmap) {
+                                partialMapping[x.first] = backuppartialMapping[x.first];
+                                myfile << "3.firstmap: " << x.first->GetLabel() << " to " << x.second->GetLabel() << endl;
+                            }
+                            for (auto x : currentmap) {
+                                partialMapping[x.first] = backuppartialMapping[x.first];
+                                myfile << "3.currentmap: " << x.first->GetLabel() << " to " << x.second->GetLabel() << endl;
+                            }
+                            currentmap.clear();
+                            remap.clear();
                             currenttotalnblosses = backupgreedyinfo.nbLosses;
                             *improve = false;
                             //newremmap = false;
                         }
                         else {
-                            besthash = hashtable;
-                            bestpartialMapping = partialMapping;
+                            besthash = hashtable; // X
+                            //bestpartialMapping = partialMapping;
+                            for (auto x : remap) {
+                                bestpartialMapping[x.first] = partialMapping[x.first];
+                                remap1[x.first] = partialMapping[x.first];
+                                myfile << "4.remap: " << x.first->GetLabel() << " to " << x.second->GetLabel() << endl;
+                            }
+                           for (auto x : partialMapping) {
+                                if (partialMapping[x.first]->GetLabel() != bestpartialMapping[x.first]->GetLabel()) {
+                                    bestpartialMapping[x.first] = partialMapping[x.first];
+                                    myfile << "Error!" << endl;
+                                    myfile << "partial: " << x.first->GetLabel() << "->" << partialMapping[x.first]->GetLabel() << " best: " << x.first->GetLabel() << "->" << bestpartialMapping[x.first]->GetLabel() << endl;
+                                }
+                            }
                             currentbestcost = tmpcost;
                             bestgreedyinfo.nbLosses = greedyinfotmp.nbLosses;
                             bestgreedyinfo.dupHeightSum = greedyinfotmp.dupHeightSum;
@@ -818,13 +1210,29 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
                             *improve = true;
                             newremmap = true;
                             hashtable = backuphash;
-                            partialMapping = backuppartialMapping;
+                            //partialMapping = backuppartialMapping;
+                            for (auto x : firstmap) {
+                                partialMapping[x.first] = backuppartialMapping[x.first];
+                                myfile << "4.firstmap: " << x.first->GetLabel() << " to " << x.second->GetLabel() << endl;
+                            }
+                            for (auto x : currentmap) {
+                                partialMapping[x.first] = backuppartialMapping[x.first];
+                                myfile << "4.currentmap: " << x.first->GetLabel() << " to " << x.second->GetLabel() << endl;
+                            }
+
+                            currentmap.clear();
+                            remap.clear();
                             currenttotalnblosses = backupgreedyinfo.nbLosses;
                         }
 
                     }
+                    firstmap.clear();
+                    currentmap.clear();
+                    remap.clear();
                 }
-
+                firstmap.clear();
+                currentmap.clear();
+                remap.clear();
             }
             g->CloseIterator(it);
         }
@@ -1057,6 +1465,7 @@ SegmentalReconcileInfo SegmentalReconcile::UltraGreedyRemapping(unordered_map<No
                         greedyinfo.nbLosses = greedyinfotmp.nbLosses;
                         greedyinfo.dupHeightSum = greedyinfotmp.dupHeightSum;
                         cout << "Good Remap!" << endl;
+                        cout << "gene index: " << Util::ToString(n->GetIndex()) << " from " << Util::ToString(currents->GetIndex()) << " -> " << Util::ToString(s->GetIndex()) << endl;
                         *improve = true;
                     }
 
