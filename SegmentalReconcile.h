@@ -41,7 +41,14 @@ public:
 
 };
 
+class Triple
+{
+public:
 
+    int slbl;
+    int dupHeight;
+    Node* n;
+};
 
 class  SegmentalReconcile
 {
@@ -56,7 +63,7 @@ public:
      * @param losscost The cost for each loss.
      * @param maxDupHeight The maximum allowable duplication height.
      */
-    SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, string algorithm);
+    SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, int nbgenes, string algorithm);
 
     /**
      * @brief Reconcile
@@ -99,6 +106,11 @@ private:
     double losscost;
     int maxDupHeight;
     int nbspecies;
+    int nbgenes;
+    int** DupChanges;
+    int*** TDupChanges;
+    int** LossChanges;
+    int** Chain;
     string algorithm;
     vector<hashlist> hashtable;
 
@@ -125,7 +137,9 @@ private:
     SegmentalReconcileInfo GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
 
     SegmentalReconcileInfo UltraGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool *improve);
-
+    SegmentalReconcileInfo FastGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges,int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+    int CalculateCostChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double dupcost, double losscost);
+    int ApplyChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable);
     //returns the lowest node of the species tree on which g can be mapped, ie the lca of the mappings of the 2 children of g
     Node* GetLowestPossibleMapping(Node* g, unordered_map<Node*, Node*>& partialMapping);
 
