@@ -127,6 +127,16 @@ void Node::SetLabel(string lbl)
         treeInfo->OnLabelChanged(this, prevLabel, lbl);
 }
 
+void Node::SetIndex(int index)
+{
+    this->index = index;
+}
+
+int Node::GetIndex()
+{
+    return this->index;
+}
+
 void Node::SetDup(bool dup)
 {
     this->isdup = dup;
