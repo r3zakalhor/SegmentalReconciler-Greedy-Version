@@ -49,7 +49,7 @@ public:
 
     hashlist()
     {
-        //listofheights.resize(1);
+        listofheights.resize(1);
     }
     int size() {
         if (listofheights.size() > 0)
@@ -58,6 +58,52 @@ public:
             return 0;
     }
 
+    bool is_unique_max(Node* g) {
+        if (listofheights.size() > 0) {
+            int size = listofheights.size() - 1;
+            if (listofheights[size].size() == 1) {
+                unordered_set<Node*>::iterator itr;
+                for (itr = listofheights[size].begin(); itr != listofheights[size].end(); itr++)
+                    if ((*itr)->GetLabel() == g->GetLabel())
+                        return true;
+            }
+        }
+        return false;
+    }
+
+    bool is_unique_element(Node* g, int height) {
+        if (listofheights[height].size() == 1) {
+            unordered_set<Node*>::iterator itr;
+            for (itr = listofheights[height].begin(); itr != listofheights[height].end(); itr++)
+                if ((*itr)->GetLabel() == g->GetLabel())
+                    return true;
+        }
+        return false;
+    }
+
+
+    int dupheight_at_subtree(Node* g) {
+        if (listofheights.size() <= 1) {
+            return 0;
+        }
+        else {
+            for (int i = 1; i < listofheights.size(); i++) {
+                //cout << " dup heights of " << i << " are : ";
+                /*auto it = std::next(listofheights.begin(), i);
+                for (int j = 0; j < listofheights[i].size(); j++) {
+                //for (std::list<Node*>::iterator it = listofheights[i].begin(); it != listofheights[i].end(); ++it) {
+                    //std::cout << *it << ' '; // You can access elements calling the operator[] , you need an iterator.
+                    cout << it->operator [](j)->GetLabel() << ", ";
+                    //cout << listofheights[i][j].liGetLabel() << ", "; // You can access elements calling the operator[] , you need an iterator.
+                }*/
+                unordered_set<Node*>::iterator itr;
+                for (itr = listofheights[i].begin(); itr != listofheights[i].end(); itr++)
+                    if ((*itr)->GetLabel() == g->GetLabel())
+                        return i;
+            }
+        }
+        return 0;
+    }
 
     void add_cell(int newdupheight, Node* g)
     {
