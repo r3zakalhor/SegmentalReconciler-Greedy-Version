@@ -66,6 +66,32 @@ map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping(vector<
     return dups_per_species;
 }
 
+int SetSpeciesIndex(Node* speciesTree) {
+    int cpt = 0;
+    TreeIterator* it = speciesTree->GetPreOrderIterator();
+    while (Node* g = it->next())
+    {
+        g->SetIndex(cpt);
+        cpt++;
+    }
+    return cpt;
+}
+
+int SetGenesIndex(vector<Node*> geneTrees) {
+    int cpt = 0;
+    for (int i = 0; i < geneTrees.size(); i++)
+    {
+        Node* genetree = geneTrees[i];
+        TreeIterator* it = genetree->GetPreOrderIterator();
+        while (Node* g = it->next())
+        {
+            g->SetIndex(cpt);
+            cpt++;
+        }
+    }
+    return cpt;
+}
+
 map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping(vector<Node*> geneTrees, Node* speciesTree, SegmentalReconcile& reconciler, SegmentalReconcileInfo& info, bool resetLabels = true)
 {
     map<Node*, vector< pair<int, Node*> > > dups_per_species;
@@ -351,7 +377,9 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
     }
 
     //int nbspecies = GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
-    int nbspecies = GeneSpeciesTreeUtil::Instance()->CountNodes(speciesTree);
+    //int nbspecies = GeneSpeciesTreeUtil::Instance()->CountNodes(speciesTree);
+    //int nbgenes = GeneSpeciesTreeUtil::Instance()->CountNodes(geneTrees);
+
     //int nbspecies = 52;
     //nbspecies--;
     string str2 = "<SPECIESTREE>\n" + NewickLex::ToNewickString(speciesTree) + "\n</SPECIESTREE>\n";
@@ -363,8 +391,10 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
         cout << str3 << endl;
     }*/
     unordered_map<Node*, Node*> geneSpeciesMapping = GetGeneSpeciesMapping(geneTrees, speciesTree, species_separator, species_index);
+    int nbspecies = SetSpeciesIndex(speciesTree);
+    int nbgenes = SetGenesIndex(geneTrees);
 
-    SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies, algorithm);
+    SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies, nbgenes, algorithm);
 
     info = reconciler.Reconcile();
 
@@ -1089,12 +1119,12 @@ int main(int argc, char* argv[])
     else
     {
         //ML's ad-hoc testing stuff for Windows.
-        /*args["d"] = "5";
+        args["d"] = "5";
         args["l"] = "0.5";
-        args["gf"] = "sample_data/all_genetrees2_edited.txt";
-        args["sf"] = "sample_data/s_tree.newick";
-        args["o"] = "sample_data/out_simphy.txt";
-        args["al"] = "simphy";*/
+        args["gf"] = "sample_data/geneTrees.txt";
+        args["sf"] = "sample_data/labeledspeciestree.txt";
+        args["o"] = "sample_data/out_fastgreedy.txt";
+        args["al"] = "greedy";
 
         //string str = "(((aves,mamm),arth),prot);";
 
