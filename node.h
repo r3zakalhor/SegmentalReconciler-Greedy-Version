@@ -42,6 +42,7 @@ class Node
 protected:
     vector<Node*> children;
     string label;
+    int index;
     //string mappingLabel;    //non generic but so important in reconciliation
     Node* parent;
     bool isdup;
@@ -91,7 +92,8 @@ public:
       Get/set Node label, which mainly used to export the tree to Newick.
       **/
     void SetLabel(string lbl);
-
+    void SetIndex(int index);
+    int GetIndex();
     bool IsDup();
 
     void SetDup(bool dup);
