@@ -38,4 +38,7 @@ Finally, by using the segmental reconciler outputs we can calculate the distance
 
 - $python compare_mapping.py $firstmapping $secondmapping $SpeciesTree $Output
 
-  
+### Generate number of duplication per species figure
+
+To generate plots of nb duplication and species, you first need to use a script to calculate number of duplications per species and save the results at CSV files using output_nbdup_csv.sh bash script. (where you can find it in the supplementaries) 
+Then use the pyhton code to generate plots for all of the simulations. (create_figures.py)
