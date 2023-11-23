@@ -31,3 +31,11 @@ Then, we need to map gene trees nodes based on the Simphy mapping by following c
 - $python map_gene_trees.py $GeneTrees $Output_GeneTrees $Simphy_simulation_directory
 
 #### Now, we can run the segmental reconciler for four different algorithms and produce the appropriate outputs.
+
+### Calculate distance between mappings
+
+Finally, by using the segmental reconciler outputs we can calculate the distance between any two mapping by fallowing command: (where you can find the Python code in the supplementaries)
+
+- $python compare_mapping.py $firstmapping $secondmapping $SpeciesTree $Output
+
+  
