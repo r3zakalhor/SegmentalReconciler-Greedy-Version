@@ -25,3 +25,9 @@ To run a simphy simulation: https://github.com/adamallo/SimPhy/wiki/Manual
 After simulating Simphy, we need to do a postorder labeling of the species tree with the following command: (where you can find the Python code in the supplementaries)
 
  - $python post-order-labeling.py $SpeciesTree $Output_SpeciesTree
+
+Then, we need to map gene trees nodes based on the Simphy mapping by following command: (where you can find the Python code in the supplementaries)
+
+- $python map_gene_trees.py $GeneTrees $Output_GeneTrees $Simphy_simulation_directory
+
+#### Now, we can run the segmental reconciler for four different algorithms and produce the appropriate outputs.
