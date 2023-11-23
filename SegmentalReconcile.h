@@ -75,6 +75,7 @@ public:
     SegmentalReconcileInfo lca_algorithm();
     SegmentalReconcileInfo simphy_algorithm();
     SegmentalReconcileInfo greedy_algorithm();
+    SegmentalReconcileInfo fastgreedy_algorithm();
     SegmentalReconcileInfo ultragreedy_algorithm();
     /**
      * @brief GetMappingCost
@@ -136,9 +137,10 @@ private:
 
     SegmentalReconcileInfo GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
 
-    SegmentalReconcileInfo UltraGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool *improve);
-    SegmentalReconcileInfo FastGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges,int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
-    int CalculateCostChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double dupcost, double losscost);
+    SegmentalReconcileInfo UltraGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+    SegmentalReconcileInfo UltraGreedyRemapping1(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+    SegmentalReconcileInfo FastGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+    double CalculateCostChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double dupcost, double losscost);
     int ApplyChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable);
     //returns the lowest node of the species tree on which g can be mapped, ie the lca of the mappings of the 2 children of g
     Node* GetLowestPossibleMapping(Node* g, unordered_map<Node*, Node*>& partialMapping);
