@@ -38,6 +38,10 @@ Finally, by using the segmental reconciler outputs we can calculate the distance
 
 - $python compare_mapping.py $firstmapping $secondmapping $SpeciesTree $Output
 
+### All in one script:
+
+You can find all these steps in a bash script that might be useful. (supplementaries/simphy_simulation.sh)
+
 ### Generate number of duplication per species figure
 
 To generate plots of nb duplication and species, you first need to use a script to calculate number of duplications per species and save the results at CSV files using output_nbdup_csv.sh bash script. (where you can find it in the supplementaries) 
