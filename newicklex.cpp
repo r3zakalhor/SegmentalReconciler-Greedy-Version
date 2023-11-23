@@ -141,6 +141,8 @@ void NewickLex::WriteNodeChildren(string& str, Node* curNode, bool addBranchLeng
     {
 
         str += curNode->GetLabel();
+        //str += "_I";
+        //str += Util::ToString(curNode->GetIndex());
 
         if (addBranchLengthToLabel && !curNode->IsRoot())
             str += ":" + Util::ToString(curNode->GetBranchLength());
@@ -161,6 +163,8 @@ void NewickLex::WriteNodeChildren(string& str, Node* curNode, bool addBranchLeng
 
         if (addInternalNodesLabel)
             str += curNode->GetLabel();
+            //str += "_I";
+            //str += Util::ToString(curNode->GetIndex());
 
         if (addBranchLengthToLabel && !curNode->IsRoot())
             str += ":" + Util::ToString(curNode->GetBranchLength());
