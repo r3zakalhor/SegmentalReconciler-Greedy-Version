@@ -364,9 +364,9 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
         return info;
     }
     //cout << algorithm << endl;
-    string all[4] = { "lca", "greedy", "ultragreedy", "simphy" };
+    string all[5] = { "lca", "greedy", "ultragreedy", "simphy","fastgreedy"};
     bool flagx = false;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         if (algorithm == all[i]) {
             flagx = true;
         }
@@ -395,7 +395,7 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
     int nbgenes = SetGenesIndex(geneTrees);
 
     SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies, nbgenes, algorithm);
-
+    cout << "dupcost: " << dupcost << " losscost: " << losscost << endl;
     info = reconciler.Reconcile();
 
     string output = "";
@@ -1119,12 +1119,12 @@ int main(int argc, char* argv[])
     else
     {
         //ML's ad-hoc testing stuff for Windows.
-        args["d"] = "5";
+        /*args["d"] = "5";
         args["l"] = "0.5";
-        args["gf"] = "sample_data/geneTrees.txt";
-        args["sf"] = "sample_data/labeledspeciestree.txt";
+        args["gf"] = "sample_data/all_genetrees_edited.txt";
+        args["sf"] = "sample_data/s_tree.newick";
         args["o"] = "sample_data/out_fastgreedy.txt";
-        args["al"] = "greedy";
+        args["al"] = "greedy";*/
 
         //string str = "(((aves,mamm),arth),prot);";
 
