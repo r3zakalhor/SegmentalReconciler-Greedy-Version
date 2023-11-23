@@ -15,3 +15,7 @@ Where $algorithm specify the type of reconciliation which has 5 options:
 - ultragreedy: It goes through all the nodes and as soon as it finds a remap that reduces the cost, it applies it.
 - fastgreedy: It goes through all nodes and finds the best remap (has the lowest cost between all possible remapping for all nodes), then applies it and again iterates over all nodes until it finds a remap that improves the cost. (this algorithm is based on the changes which fast)
 - greedy: It works like fastgreedy but is slower.
+
+### Simphy
+
+To run a simphy simulation: https://github.com/adamallo/SimPhy/wiki/Manual
