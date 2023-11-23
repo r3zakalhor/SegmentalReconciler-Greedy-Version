@@ -19,3 +19,9 @@ Where $algorithm specify the type of reconciliation which has 5 options:
 ### Simphy
 
 To run a simphy simulation: https://github.com/adamallo/SimPhy/wiki/Manual
+
+#### Postorder labeling
+
+After simulating Simphy, we need to do a postorder labeling of the species tree with the following command: (where you can find the Python code in the supplementaries)
+
+ - $python post-order-labeling.py $SpeciesTree $Output_SpeciesTree
