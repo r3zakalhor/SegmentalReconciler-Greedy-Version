@@ -2210,7 +2210,7 @@ Node* SegmentalReconcile::GetSimphyMapping(Node* g, unordered_map<Node*, Node*>&
         if(!look_species_->IsRoot())
             look_species_ = look_species_->GetParent();
     }
-    cout << "simphy mapped to root: " << look_species_->GetLabel() << " the simphy mapping is: " << species << endl;
+    //cout << "simphy mapped to root: " << look_species_->GetLabel() << " the simphy mapping is: " << species << endl;
     return look_species_;
     //}
 
