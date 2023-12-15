@@ -284,7 +284,7 @@ SegmentalReconcileInfo SegmentalReconcile::lca_algorithm() {
 
 SegmentalReconcileInfo SegmentalReconcile::simphy_algorithm() {
 
-    ComputeLCAMapping();
+    //ComputeLCAMapping();
 
     unordered_map<Node*, Node*> partialMapping(this->geneSpeciesMapping);
     Node* gg;
@@ -1088,7 +1088,7 @@ SegmentalReconcileInfo SegmentalReconcile::GreedyRemapping(unordered_map<Node*, 
             Node* currents;
             vector<Node*> possibleremapping;
 
-            TreeIterator* it = g->GetPostOrderIterator();
+            TreeIterator* it = g->GetPreOrderIterator();
             while (Node* n = it->next())
             {
                 if (!n->IsLeaf())
@@ -2154,11 +2154,40 @@ Node* SegmentalReconcile::GetSimphyMapping(Node* g, unordered_map<Node*, Node*>&
     while (std::getline(ss, token, delimiter)) {
         tokens.push_back(token);
     }
-    string species;
-    //cout << "mapped to " << endl;
-    for (const auto& t : tokens) {
-        //std::cout << t << std::endl;
-        species = t;
+    string species, event;
+    species = "none";
+    event = "none";
+    std::string myString = s;
+    //cout << "ST: " << s << endl;
+    // Find the position of the first underscore
+    std::istringstream iss(myString);
+    std::vector<std::string> parts;
+
+    // Extract all parts separated by underscores
+    while (std::getline(iss, myString, '_')) {
+        parts.push_back(myString);
+    }
+
+    // Check if there are at least three parts
+    if (parts.size() >= 3) {
+        // Output the second and third parts
+        species = parts[1];
+        event = parts[2];
+    }
+    else {
+        std::cout << "Insufficient parts found." << std::endl;
+    }
+
+
+
+    // Output the result
+    //std::cout << "S: " << species << "   E: " << event << std::endl;
+
+    if (event == "Dup") {
+        g->SetDup(true);
+    }
+    else {
+        g->SetDup(false);
     }
     //cout << species << endl;
     Node * look_species_ = partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
@@ -2167,12 +2196,12 @@ Node* SegmentalReconcile::GetSimphyMapping(Node* g, unordered_map<Node*, Node*>&
 
         string look_species = look_species_->GetLabel();
         // Find the position of the first occurrence of the delimiter
-        size_t pos = look_species.find(separator);
-        if (pos != std::string::npos) {
+        //size_t pos = look_species.find(separator);
+        //if (pos != std::string::npos) {
             // Extract the substring just before the delimiter
-            look_species = look_species.substr(0, pos);
+            //look_species = look_species.substr(0, pos);
             //std::cout << "Result: " << look_species << std::endl;
-        }
+        //}
 
         if (species == look_species) {
             //cout << "simphy mapped to: "<< look_species << endl;
@@ -2181,11 +2210,11 @@ Node* SegmentalReconcile::GetSimphyMapping(Node* g, unordered_map<Node*, Node*>&
         if(!look_species_->IsRoot())
             look_species_ = look_species_->GetParent();
     }
-    //cout << "simphy mapped to: " << look_species_->GetLabel() << endl;
+    cout << "simphy mapped to root: " << look_species_->GetLabel() << " the simphy mapping is: " << species << endl;
     return look_species_;
     //}
 
-    return partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
+    //return partialMapping[g->GetChild(0)]->FindLCAWith(partialMapping[g->GetChild(1)]);
 
 }
 
