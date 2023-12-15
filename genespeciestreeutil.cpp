@@ -104,6 +104,14 @@ unordered_map<Node*, Node*> GeneSpeciesTreeUtil::GetGeneSpeciesMappingByLabel(No
             cout << "Gene label " << lbl << " malformed" << endl << flush;
             throw "Gene label " + lbl + " malformed.";
         }
+
+        // if data is from simphy
+        if (!sz[speciesIndex].empty() && g->IsLeaf()) {
+            // Add single quotes at the beginning and end of sz[speciesIndex]
+            sz[speciesIndex].insert(sz[speciesIndex].begin(), std::string::value_type('\''));
+            sz[speciesIndex] += std::string::value_type('\'');
+        }
+
         Node* s = speciesTree->GetLeafByLabel(sz[speciesIndex]);
 
         if (s)
