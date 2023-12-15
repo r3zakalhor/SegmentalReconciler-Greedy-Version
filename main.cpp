@@ -33,8 +33,14 @@ map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping(vector<
         while (Node* g = it->next())
         {
             if (!g->IsLeaf())
-            {
+            {   
                 string lbl = g->GetLabel();
+
+                // Find the position of the first occurrence of "_"
+                //size_t pos = lbl.find('_');
+                // Extract the substring before the first "_"
+                //lbl = lbl.substr(0, pos);
+                
                 if (lbl != "")
                     lbl += "_";
 
@@ -57,6 +63,68 @@ map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping(vector<
                 }
                 else
                     lbl += "_Spec";
+                g->SetLabel(lbl);
+            }
+        }
+        genetree->CloseIterator(it);
+    }
+
+    return dups_per_species;
+}
+
+map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping_Simphy(vector<Node*> geneTrees, Node* speciesTree, SegmentalReconcile& reconciler, SegmentalReconcileInfo& info, bool resetLabels = true)
+{
+    map<Node*, vector< pair<int, Node*> > > dups_per_species;
+    int dup_counter = 1;
+    for (int i = 0; i < geneTrees.size(); i++)
+    {
+        Node* genetree = geneTrees[i];
+
+        TreeIterator* it = genetree->GetPostOrderIterator();
+        while (Node* g = it->next())
+        {
+            if (!g->IsLeaf())
+            {
+                string lbl = g->GetLabel();
+
+                // Find the position of the first occurrence of "_"
+                //size_t pos = lbl.find('_');
+                // Extract the substring before the first "_"
+                //lbl = lbl.substr(0, pos);
+
+                if (lbl != "")
+                    lbl += "_";
+
+                if (resetLabels)
+                    lbl = "";
+
+                lbl += info.partialMapping[g]->GetLabel();
+                if (g->IsDup()) {
+                    if (reconciler.IsDuplication(g, info.partialMapping))
+                    {
+                        lbl += "_Dup_nb" + Util::ToString(dup_counter);
+                        dup_counter++;
+
+                        vector< pair<int, Node*> > dups_for_s;
+                        if (dups_per_species.find(info.partialMapping[g]) != dups_per_species.end())
+                            dups_for_s = dups_per_species[info.partialMapping[g]];
+                        pair<int, Node*> p = make_pair(i + 1, g);
+                        dups_for_s.push_back(p);
+                        dups_per_species[info.partialMapping[g]] = dups_for_s;
+                    }
+                    else {
+                        cout << "WARN!" << endl;
+                        lbl += "_Spec_nb" + Util::ToString(dup_counter);
+                        dup_counter++;
+
+                        vector< pair<int, Node*> > dups_for_s;
+                        if (dups_per_species.find(info.partialMapping[g]) != dups_per_species.end())
+                            dups_for_s = dups_per_species[info.partialMapping[g]];
+                        pair<int, Node*> p = make_pair(i + 1, g);
+                        dups_for_s.push_back(p);
+                        dups_per_species[info.partialMapping[g]] = dups_for_s;
+                    }
+                }
                 g->SetLabel(lbl);
             }
         }
@@ -442,6 +510,33 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
         }
         speciesTree->CloseIterator(itsp);
         output += "</DUPS_PER_SPECIES>\n";
+        
+        /*if (algorithm == "simphy") {
+            map<Node*, vector< pair<int, Node*> > > dups_per_species_simphy = LabelGeneTreesWithSpeciesMapping_Simphy(geneTrees, speciesTree, reconciler, info, false);
+            output += "<DUPS_PER_SPECIES_SIMPHY>\n";
+            TreeIterator* itsp = speciesTree->GetPostOrderIterator();
+            while (Node* s = itsp->next())
+            {
+                if (dups_per_species_simphy.find(s) != dups_per_species_simphy.end())
+                {
+                    output += "[" + s->GetLabel() + "] ";
+                    vector< pair<int, Node*> > dups_for_s = dups_per_species_simphy[s];
+
+                    for (int d = 0; d < dups_for_s.size(); d++)
+                    {
+                        pair<int, Node*> p = dups_for_s[d];
+                        string lbl = p.second->GetLabel();
+                        lbl = Util::GetSubstringAfter(lbl, "_");
+
+                        output += lbl + " (G" + Util::ToString(p.first) + ") ";
+
+                    }
+                    output += "\n";
+                }
+            }
+            speciesTree->CloseIterator(itsp);
+            output += "</DUPS_PER_SPECIES_SIMPHY>\n";
+        }*/
     }
 
     if (outfile == "")
@@ -1119,12 +1214,12 @@ int main(int argc, char* argv[])
     else
     {
         //ML's ad-hoc testing stuff for Windows.
-        /*args["d"] = "5";
+        args["d"] = "5";
         args["l"] = "0.5";
         args["gf"] = "sample_data/all_genetrees_edited.txt";
         args["sf"] = "sample_data/s_tree.newick";
-        args["o"] = "sample_data/out_fastgreedy.txt";
-        args["al"] = "greedy";*/
+        args["o"] = "sample_data/out_simphy.txt";
+        args["al"] = "simphy";
 
         //string str = "(((aves,mamm),arth),prot);";
 
