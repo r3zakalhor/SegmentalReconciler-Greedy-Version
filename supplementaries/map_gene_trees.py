@@ -25,8 +25,8 @@ def remove_branch_lengths(newick_file, output_file, genetree_id):
             # print(section)
             flag1 = False
         else:
-            species_name = look_sim_species(node.name, genetree_id)
-            node.name = str(node.name) + "_" + species_name
+            species_name, event = look_sim_species(node.name, genetree_id)
+            node.name = str(node.name) + "_" + species_name + "_" + event
             #print(node.name)
         node.dist = 0
 
@@ -82,19 +82,21 @@ def look_sim_species(gene_id, genetree_id):
     lines = gene_tree_mapping.readlines()
     species_id = "-1"
     flag = False
+    event = "ND"
     for line in lines:
         words = line.split()
         if words[0] == locus_id:
             species_id = words[3]
+            event = words[2]
             flag = True
     gene_tree_mapping.close()
     if flag == False:
         species_id = locus_id
 
-    translation_table = str.maketrans("", "", "'")
-    species_id = species_id.translate(translation_table)
+    #translation_table = str.maketrans("", "", "'")
+    #species_id = species_id.translate(translation_table)
     #print(locus_id + " -> " + species_id)
-    return species_id
+    return species_id, event
 
 
 if __name__ == "__main__":
