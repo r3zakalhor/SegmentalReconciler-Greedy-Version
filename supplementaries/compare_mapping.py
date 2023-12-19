@@ -75,7 +75,7 @@ if __name__ == "__main__":
                 if section.__len__() > 3:
                     # print(section)
                     sim_map = section[1]
-                    algorithm_map = section[2]
+                    algorithm_map = section[3]
                     # print(section)
                     # print(sim_map[0])
                     # print(greedy_map[0])
@@ -86,8 +86,8 @@ if __name__ == "__main__":
                         # print (sim_map)
                         # print (algorithm_map)
                         translation_table = str.maketrans("", "", "'")
-                        algorithm_map = algorithm_map.translate(translation_table)
-                        sim_map = sim_map.translate(translation_table)
+                        #algorithm_map = algorithm_map.translate(translation_table)
+                        #sim_map = sim_map.translate(translation_table)
                         # A = s_tree.search_nodes(name=sim_map)
                         #if len(A) > 0:
                             # A = A[0]
