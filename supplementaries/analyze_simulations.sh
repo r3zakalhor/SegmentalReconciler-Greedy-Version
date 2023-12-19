@@ -1,10 +1,10 @@
 #!/bin/sh
 
-Numbersimulation=100
+Numbersimulation=1
 dupcost=2
 losscost=1
-dir_name="s7_100"
-stats_out=$dir_name/stats_out_d2_l1_new.csv
+dir_name="s9_100"
+stats_out=$dir_name/stats_out_d2_l1_new4.csv
 
 str="D(lca-simphy),D(greedy-simphy),D(ultragreedy-simphy),C(simphy),DH(simphy),NBL(simphy),C(lca),DH(lca),NBL(lca),C(greedy),DH(greedy),NBL(greedy),C(ultragreedy),DH(ultragreedy),NBL(ultragreedy), max_nb_dup_species, sim number"
 echo $str > $stats_out
@@ -22,15 +22,16 @@ do
 	cd ..
 	
 	
-	maxheight=$(head -n 1 "$dir_name/$newname/maxheight.txt")
+	#maxheight=$(head -n 1 "$dir_name/$newname/maxheight.txt")
+	maxheight=0
 	
 	if [ -s $dir_name/$newname/s_tree.trees ]; then
 
-		python post-order-labeling.py $dir_name/$newname/s_tree.trees $dir_name/$newname/s_tree.newick
+		#python post-order-labeling.py $dir_name/$newname/s_tree.trees $dir_name/$newname/s_tree.newick
 
-		python map_gene_trees.py $dir_name/$newname/all_genetrees.txt $dir_name/$newname/all_genetrees_edited.txt $dir_name/$newname
+		#python map_gene_trees.py $dir_name/$newname/all_genetrees.txt $dir_name/$newname/all_genetrees_edited.txt $dir_name/$newname
 
-		./segmentalreconcile_new -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_simphy.txt -al simphy
+		./segmentalreconcile_new4 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_simphy.txt -al simphy
 		file="$dir_name/$newname/out_simphy.txt" 
 		j=1  
 		while read -r line; do
@@ -46,7 +47,7 @@ do
 		#echo "$simphy_cost, $simphy_dupheight, $simphy_nblosses"
 		
 		
-		./segmentalreconcile_new -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_lca.txt -al lca
+		./segmentalreconcile_new4 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_lca.txt -al lca
 		file="$dir_name/$newname/out_lca.txt" 
 		j=1  
 		while read -r line; do
@@ -61,7 +62,7 @@ do
 		done < $file  
 		#echo "$lca_cost, $lca_dupheight, $lca_nblosses"
 		
-		./segmentalreconcile_new -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_greedy.txt -al fastgreedy
+		./segmentalreconcile_new4 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_greedy.txt -al greedy
 		file="$dir_name/$newname/out_greedy.txt" 
 		j=1  
 		while read -r line; do
@@ -76,7 +77,7 @@ do
 		done < $file  
 		#echo "$greedy_cost, $greedy_dupheight, $greedy_nblosses"
 		
-		./segmentalreconcile_new -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_ultragreedy.txt -al ultragreedy
+		./segmentalreconcile_new4 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_ultragreedy.txt -al ultragreedy
 		file="$dir_name/$newname/out_ultragreedy.txt" 
 		j=1  
 		while read -r line; do
