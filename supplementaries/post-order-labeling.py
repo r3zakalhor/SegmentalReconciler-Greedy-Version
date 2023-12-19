@@ -15,6 +15,7 @@ root = tree.get_tree_root()
 def postorder_traversal(node, id_counter):
     if node.is_leaf():
         # node.name = str(id_counter[0])
+        node.name = "'" + node.name + "'"
         id_counter[0] += 1
     else:
         for child in node.children:
