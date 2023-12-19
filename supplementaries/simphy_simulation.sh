@@ -2,9 +2,12 @@
 
 Numbersimulation=100
 
-dir_name="s8_100"
+dir_name="s9_100"
 mkdir $dir_name
-stats_out=$dir_name/stats_out.csv
+dupcost=5
+losscost=0.5
+
+stats_out=$dir_name/stats_out2.csv
 
 str="D(lca-simphy),D(greedy-simphy),D(ultragreedy-simphy),C(simphy),DH(simphy),NBL(simphy),C(lca),DH(lca),NBL(lca),C(greedy),DH(greedy),NBL(greedy),C(ultragreedy),DH(ultragreedy),NBL(ultragreedy), max_nb_dup_species, sim number"
 echo $str > $stats_out
@@ -13,9 +16,9 @@ write_csv(){
     echo \"$1\",\"$2\",\"$3\",\"$4\",\"$5\",\"$6\",\"$7\",\"$8\",\"$9\",\"${10}\",\"${11}\",\"${12}\",\"${13}\",\"${14}\",\"${15}\",\"${16}\",\"${17}\" >> $stats_out
 }
 
-for (( i=1; i<=$Numbersimulation; i++ ))
+for (( i=46; i<=$Numbersimulation; i++ ))
 do
-	./simphy -sb f:0.000001 -gb u:-20,-15 -gt f:gb -ld ln:gb,3 -lb f:ld -lt f:0.0 -rs 1 -rl f:999 -rg 1 -o $dir_name -sp f:10000 -su f:0.00001 -sg f:1 -sl U:20,50 -st f:1000000 -om 1 -v 3 -od 1 -op 1 -oc 1 -on 1 -ol 1 -cs $RANDOM
+	./simphy -sb f:0.000001 -gb u:-20,-15 -gt f:0.0 -gg f:0.0 -gp f:0.0 -ld ln:gb,3 -lb f:ld -lt f:0.0 -lg f:0.0 -rs 1 -rl f:99 -rg 1 -o $dir_name -sp f:2 -su f:0.00001 -sg f:1 -sl U:20,50 -st f:1000000 -om 1 -v 3 -od 1 -op 1 -oc 1 -on 1 -ol 1 -cs $RANDOM
 	cd $dir_name
 	newname="sim_${i}"
 	rm -r $newname
@@ -24,20 +27,21 @@ do
 	cd $newname 
 	cat g_trees* >> all_genetrees.txt
 	echo "gene trees are combined!"
-	bash ../../counter_dup_per_species.sh
-	cd ..
-	cd ..
+	#bash ../../counter_dup_per_species.sh
 	
 	
-	maxheight=$(head -n 1 "$dir_name/$newname/maxheight.txt")
+	maxheight=0
 	
-	if [ -s diff.txt ]; then
+	if [ -s s_tree.trees ]; then
+		
+		cd ..
+		cd ..
 
 		python post-order-labeling.py $dir_name/$newname/s_tree.trees $dir_name/$newname/s_tree.newick
 
 		python map_gene_trees.py $dir_name/$newname/all_genetrees.txt $dir_name/$newname/all_genetrees_edited.txt $dir_name/$newname
 
-		./segmentalreconcile -d 5 -l 0.5 -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_simphy.txt -al simphy
+		./segmentalreconcile_new3 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_simphy.txt -al simphy
 		file="$dir_name/$newname/out_simphy.txt" 
 		j=1  
 		while read -r line; do
@@ -53,7 +57,7 @@ do
 		#echo "$simphy_cost, $simphy_dupheight, $simphy_nblosses"
 		
 		
-		./segmentalreconcile -d 5 -l 0.5 -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_lca.txt -al lca
+		./segmentalreconcile_new3 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_lca.txt -al lca
 		file="$dir_name/$newname/out_lca.txt" 
 		j=1  
 		while read -r line; do
@@ -68,7 +72,7 @@ do
 		done < $file  
 		#echo "$lca_cost, $lca_dupheight, $lca_nblosses"
 		
-		./segmentalreconcile -d 5 -l 0.5 -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_greedy.txt -al greedy
+		./segmentalreconcile_new3 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_greedy.txt -al greedy
 		file="$dir_name/$newname/out_greedy.txt" 
 		j=1  
 		while read -r line; do
@@ -83,7 +87,7 @@ do
 		done < $file  
 		#echo "$greedy_cost, $greedy_dupheight, $greedy_nblosses"
 		
-		./segmentalreconcile -d 5 -l 0.5 -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_ultragreedy.txt -al ultragreedy
+		./segmentalreconcile_new3 -d $dupcost -l $losscost -gf $dir_name/$newname/all_genetrees_edited.txt -sf $dir_name/$newname/s_tree.newick -o $dir_name/$newname/out_ultragreedy.txt -al ultragreedy
 		file="$dir_name/$newname/out_ultragreedy.txt" 
 		j=1  
 		while read -r line; do
@@ -118,10 +122,10 @@ do
 	else
 
 		stats=-1
+		cd ..
+		cd ..
+
 	
 	fi
 
 done
-
-
-
