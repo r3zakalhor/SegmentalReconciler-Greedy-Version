@@ -51,6 +51,8 @@ map<Node*, vector< pair<int, Node*> > > LabelGeneTreesWithSpeciesMapping(vector<
 
                 if (reconciler.IsDuplication(g, info.partialMapping))
                 {
+                    if (g->IsDup())
+                        cout << "Warn!" << endl;
                     lbl += "_Dup_nb" + Util::ToString(dup_counter);
                     dup_counter++;
 
@@ -141,6 +143,17 @@ int SetSpeciesIndex(Node* speciesTree) {
     {
         g->SetIndex(cpt);
         cpt++;
+    }
+    return cpt;
+}
+
+int countleaves(Node* speciesTree) {
+    int cpt = 0;
+    TreeIterator* it = speciesTree->GetPreOrderIterator();
+    while (Node* g = it->next())
+    {
+        if(g->IsLeaf())
+            cpt++;
     }
     return cpt;
 }
@@ -432,9 +445,9 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
         return info;
     }
     //cout << algorithm << endl;
-    string all[5] = { "lca", "greedy", "ultragreedy", "simphy","fastgreedy"};
+    string all[6] = { "lca", "greedy", "ultragreedy", "simphy", "fastgreedy", "stochastic"};
     bool flagx = false;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         if (algorithm == all[i]) {
             flagx = true;
         }
@@ -444,13 +457,13 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
         return info;
     }
 
-    //int nbspecies = GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
-    //int nbspecies = GeneSpeciesTreeUtil::Instance()->CountNodes(speciesTree);
+    //int numintnodes = GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(speciesTree);
+    //int numintnodes = GeneSpeciesTreeUtil::Instance()->CountNodes(speciesTree);
     //int nbgenes = GeneSpeciesTreeUtil::Instance()->CountNodes(geneTrees);
 
     //int nbspecies = 52;
     //nbspecies--;
-    string str2 = "<SPECIESTREE>\n" + NewickLex::ToNewickString(speciesTree) + "\n</SPECIESTREE>\n";
+    //string str2 = "<SPECIESTREE>\n" + NewickLex::ToNewickString(speciesTree) + "\n</SPECIESTREE>\n";
     //cout << "speciesTree2 : " << str2 << endl;
     //cout << "nbspecies : " << nbspecies << endl;
     //GeneSpeciesTreeUtil::Instance()->LabelInternalNodesUniquely(geneTrees);
@@ -460,11 +473,33 @@ SegmentalReconcileInfo Initialize(map<string, string> args) {
     }*/
     unordered_map<Node*, Node*> geneSpeciesMapping = GetGeneSpeciesMapping(geneTrees, speciesTree, species_separator, species_index);
     int nbspecies = SetSpeciesIndex(speciesTree);
+    int numleaves = countleaves(speciesTree);
     int nbgenes = SetGenesIndex(geneTrees);
-
-    SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies, nbgenes, algorithm);
+    //cout << "numleaves " << numleaves << " nbspeci " << nbspecies << endl;
+    int numintnodes = nbspecies;
+    nbspecies = nbspecies + numleaves + 1;
+    SegmentalReconcile reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies, nbgenes, numintnodes, algorithm);
     cout << "dupcost: " << dupcost << " losscost: " << losscost << endl;
     info = reconciler.Reconcile();
+
+    // Comapre old greedy and fast greedy mapping
+    /*SegmentalReconcile reconciler2(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, maxDupheight, nbspecies, nbgenes, "greedy");
+    SegmentalReconcileInfo info2 = reconciler2.Reconcile();
+    for (int i = 0; i < geneTrees.size(); i++)
+    {
+        Node* genetree = geneTrees[i];
+
+        TreeIterator* it = genetree->GetPostOrderIterator();
+        while (Node* g = it->next())
+        {
+            if (!g->IsLeaf())
+            {
+                string lbl = g->GetLabel();
+                if (info.partialMapping[g]->GetLabel() != info2.partialMapping[g]->GetLabel())
+                    cout << "g: " << lbl << " in fast is mapped to: " << info.partialMapping[g]->GetLabel() <<  " in old mapped to: " << info2.partialMapping[g]->GetLabel() << " in gene tree: " << i << endl;
+            }
+        }
+    }*/
 
     string output = "";
     if (info.isBad)
@@ -1214,12 +1249,12 @@ int main(int argc, char* argv[])
     else
     {
         //ML's ad-hoc testing stuff for Windows.
-        args["d"] = "5";
-        args["l"] = "0.5";
+        args["d"] = "10";
+        args["l"] = "1";
         args["gf"] = "sample_data/all_genetrees_edited.txt";
         args["sf"] = "sample_data/s_tree.newick";
-        args["o"] = "sample_data/out_simphy.txt";
-        args["al"] = "simphy";
+        args["o"] = "sample_data/out_greedy.txt";
+        args["al"] = "stochastic";
 
         //string str = "(((aves,mamm),arth),prot);";
 
