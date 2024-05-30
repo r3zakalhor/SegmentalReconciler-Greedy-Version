@@ -1409,6 +1409,7 @@ SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Nod
                     int mu_index = mu->GetIndex();
                     int g_index = n->GetIndex();
                     find_genes_by_index[g_index] = n;
+                    find_species_by_index[mu_index] = mu;
                     Node* mpu = mu;
                     int mpu_index = mu_index;
                     int g_parent_index = g_index;
@@ -1519,6 +1520,7 @@ SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Nod
                         myfile << "* at iteration: " << loop << " gene index: " << (*itr)->GetLabel() << " from " << partialMapping[(*itr)]->GetLabel() << " -> " << find_species_by_index[sv.sindex[sv_selected_index]]->GetLabel() << " boltzman prob: " << sv.prob[sv_selected_index] << endl;
                         ApplyChange(*itr, find_species_by_index[sv.sindex[sv_selected_index]], partialMapping, hashtable);
                     }
+                    sv.prob[sv_selected_index] = 0;
                 }
                 greedyinfo.dupHeightSum = GetdupHeightSum(hashtable);
                 greedyinfo.nbLosses = GetnbLosses(partialMapping);
