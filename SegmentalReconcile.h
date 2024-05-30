@@ -11,6 +11,13 @@
 #include "treeiterator.h"
 #include "hashtable.h"
 
+#include <vector>
+#include <algorithm>
+#include <numeric> // For std::accumulate
+#include <random>
+#include <ctime>
+#include <utility>
+
 using namespace std;
 
 
@@ -63,7 +70,7 @@ public:
      * @param losscost The cost for each loss.
      * @param maxDupHeight The maximum allowable duplication height.
      */
-    SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, int nbgenes, string algorithm);
+    SegmentalReconcile(vector<Node*>& geneTrees, Node* speciesTree, unordered_map<Node*, Node*>& geneSpeciesMapping, double dupcost, double losscost, int maxDupHeight, int nbspecies, int nbgenes, int numintnodes, string algorithm);
 
     /**
      * @brief Reconcile
@@ -77,6 +84,7 @@ public:
     SegmentalReconcileInfo greedy_algorithm();
     SegmentalReconcileInfo fastgreedy_algorithm();
     SegmentalReconcileInfo ultragreedy_algorithm();
+    SegmentalReconcileInfo stochastic_algorithm();
     /**
      * @brief GetMappingCost
      * @param fullMapping A mapping of each node of each gene tree to the species tree.  We assume this mapping is valid without checking.
@@ -106,12 +114,13 @@ private:
     double dupcost;
     double losscost;
     int maxDupHeight;
-    int nbspecies;
+    int nbspecies, numintnodes;
     int nbgenes;
     int** DupChanges;
     int*** TDupChanges;
     int** LossChanges;
     int** Chain;
+    bool* Visit;
     string algorithm;
     vector<hashlist> hashtable;
 
@@ -137,9 +146,12 @@ private:
 
     SegmentalReconcileInfo GreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
 
-    SegmentalReconcileInfo UltraGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+    SegmentalReconcileInfo UltraGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool *improve);
     SegmentalReconcileInfo UltraGreedyRemapping1(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
-    SegmentalReconcileInfo FastGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+    SegmentalReconcileInfo FastGreedyRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges,int** DupChanges, int** LossChanges, bool* Visit, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+    SegmentalReconcileInfo StochasticRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, bool* Visit, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve);
+
+    double CalculateCostChange_v2(vector<Node*> n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, bool* Visit, vector<Node*>& geneTrees, Node* speciesTree, double dupcost, double losscost, bool &tuple);
     double CalculateCostChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, vector<Node*>& geneTrees, Node* speciesTree, double dupcost, double losscost);
     int ApplyChange(Node* n, Node* s, unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable);
     //returns the lowest node of the species tree on which g can be mapped, ie the lca of the mappings of the 2 children of g
@@ -175,6 +187,129 @@ private:
     //This mapping can undergo modifications.  Only the minimal nodes and their ancestors can be modified.
     int CleanupPartialMapping(unordered_map<Node*, Node*>& partialMapping, unordered_map<Node*, int>& duplicationheights, vector<Node*>& minimalNodes);
 
+};
+
+
+
+class StochasticVectors {
+public:
+    std::vector<int> gindex;
+    std::vector<int> sindex;
+    std::vector<bool> gindex_to_sindex;
+    std::vector<double> prob;
+
+public:
+    // Constructor
+    StochasticVectors() {}
+
+    // Function to add elements to a specified vector
+    void addElement(int gindex1, int sindex1, bool gindex_to_sindex1, double prob1) {
+        gindex.push_back(gindex1);
+        sindex.push_back(sindex1);
+        gindex_to_sindex.push_back(gindex_to_sindex1);
+        prob.push_back(prob1);
+    }
+
+    // Function to get the size of a specified vector
+    int getSize(int vectorNumber) {
+        return gindex.size();
+    }
+
+    // Function to display elements of a specified vector
+    void displayVector(int vectorNumber) {
+        switch (vectorNumber) {
+        case 1:
+            printVector(gindex);
+            break;
+        case 2:
+            printVector(sindex);
+            break;
+        case 3:
+            printVector(gindex_to_sindex);
+            break;
+        case 4:
+            printVector(prob);
+            break;
+        default:
+            std::cout << "Invalid vector number!" << std::endl;
+            break;
+        }
+    }
+
+
+    // Function to normalize the prob vector to values between 0 and 1
+    void normalizeProbabilities() {
+        if (prob.empty()) {
+            return;
+        }
+
+        double min_val = *std::min_element(prob.begin(), prob.end());
+        double max_val = *std::max_element(prob.begin(), prob.end());
+        double range = max_val - min_val;
+
+        if (range == 0) {
+            range = 1;
+        }
+
+        for (auto& p : prob) {
+            p = (p - min_val) / range;
+        }
+    }
+
+    // Function to perform weighted random selection from the prob vector
+    std::pair<int, double> weightedRandomSelection() {
+        double totalWeight = std::accumulate(prob.begin(), prob.end(), 0.0);
+
+        if (totalWeight == 0) {
+            return { -2, -2.0 };
+        }
+
+        static std::default_random_engine generator(static_cast<unsigned>(std::time(0)));
+        std::uniform_real_distribution<double> distribution(0.0, totalWeight);
+        double randomNumber = distribution(generator);
+
+        double cumulativeWeight = 0.0;
+        for (size_t i = 0; i < prob.size(); ++i) {
+            cumulativeWeight += prob[i];
+            if (randomNumber <= cumulativeWeight) {
+                return { static_cast<int>(i), prob[i] };
+            }
+        }
+
+        // This should never happen if the weights sum up to a non-zero value
+        return { -1, -1.0 }; // Error
+    }
+
+    void printValuesAtIndex(int i) {
+        if (i < 0 || i >= gindex.size()) {
+            std::cout << "Index out of bounds!" << std::endl;
+            return;
+        }
+        std::cout << "[ " << gindex[i] << ", " << sindex[i] << ", " << gindex_to_sindex[i] << ", " << prob[i] << " ]" << std::endl;
+    }
+
+private:
+    // Helper function to print a vector
+    void printVector(const std::vector<int>& vec) {
+        for (int element : vec) {
+            std::cout << element << " ";
+        }
+        std::cout << std::endl;
+    }
+    // Helper function to print a vector
+    void printVector(const std::vector<bool>& vec) {
+        for (bool element : vec) {
+            std::cout << element << " ";
+        }
+        std::cout << std::endl;
+    }
+    // Helper function to print a vector
+    void printVector(const std::vector<double>& vec) {
+        for (double element : vec) {
+            std::cout << element << " ";
+        }
+        std::cout << std::endl;
+    }
 };
 
 #endif // SEGMENTALRECONCILER_H
