@@ -57,6 +57,13 @@ public:
         else
             return 0;
     }
+    
+    unordered_set<Node*> return_max_heights() {
+        if (listofheights.size() > 0)
+            return listofheights[listofheights.size() - 1];
+        else
+            return unordered_set<Node*>();
+    }
 
     bool is_unique_max(Node* g) {
         if (listofheights.size() > 0) {
@@ -64,8 +71,9 @@ public:
             if (listofheights[size].size() == 1) {
                 unordered_set<Node*>::iterator itr;
                 for (itr = listofheights[size].begin(); itr != listofheights[size].end(); itr++)
-                    if ((*itr)->GetLabel() == g->GetLabel())
+                    if ((*itr)->GetIndex() == g->GetIndex()) {
                         return true;
+                    }
             }
         }
         return false;
@@ -75,8 +83,10 @@ public:
         if (listofheights[height].size() == 1) {
             unordered_set<Node*>::iterator itr;
             for (itr = listofheights[height].begin(); itr != listofheights[height].end(); itr++)
-                if ((*itr)->GetLabel() == g->GetLabel())
+                if ((*itr)->GetIndex() == g->GetIndex()) {
+                    //cout << "indwex: " << g->GetIndex() << endl;
                     return true;
+                }
         }
         return false;
     }
