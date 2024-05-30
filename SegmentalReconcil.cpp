@@ -1345,7 +1345,7 @@ void copyMap(const std::unordered_map<Node*, Node*>& source,
 
 SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Node*, Node*>& partialMapping, vector<hashlist>& hashtable, int** Chain, int*** TDupChanges, int** DupChanges, int** LossChanges, bool* Visit, vector<Node*>& geneTrees, Node* speciesTree, double LCAcost, double dupcost, double losscost, bool* improve)
 {
-    StochasticVectors sv;
+    
     double BestCostChange, CurrentCostChange;
     BestCostChange = 0;
     vector<Node*> minimalNodes;
@@ -1371,6 +1371,7 @@ SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Nod
     bool newremmap_greedy2 = true;
     //myfile << "start!" << endl;
     while (not_better_cost < 50) {
+        StochasticVectors sv;
         myfile << "Stochastic is Running!" << endl;
         BestCostChange = 0;
         cntn = 0;
@@ -1510,7 +1511,7 @@ SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Nod
                 }
                 else {
                     myfile << "Set of Moves: " << endl;
-                    int mu_lbl = Getspecieslbl(find_genes_by_index[sv.gindex[sv_selected_index]], numintnodes);
+                    int mu_lbl = Util::ToInt(find_genes_by_index[sv.gindex[sv_selected_index]]->GetLabel());
                     unordered_set<Node*> nodes = hashtable[mu_lbl].return_max_heights();
                     unordered_set<Node*>::iterator itr;
                     for (itr = nodes.begin(); itr != nodes.end(); itr++) {
