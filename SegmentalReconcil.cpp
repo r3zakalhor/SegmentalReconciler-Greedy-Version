@@ -1356,8 +1356,7 @@ SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Nod
     copyMap(partialMapping, bestpartialMapping);
     bool remap_find = false;
     bool tuple, besttuple;
-    vector<Node*> find_genes_by_index(nbgenes);
-    vector<Node*> find_species_by_index(nbspecies);
+
     ofstream myfile;
     myfile.open("stochastic.txt");
     ofstream costs;
@@ -1372,6 +1371,8 @@ SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Nod
     //myfile << "start!" << endl;
     while (not_better_cost < 50) {
         StochasticVectors sv;
+        vector<Node*> find_genes_by_index(nbgenes);
+        vector<Node*> find_species_by_index(nbspecies);
         myfile << "Stochastic is Running!" << endl;
         BestCostChange = 0;
         cntn = 0;
@@ -1511,7 +1512,7 @@ SegmentalReconcileInfo SegmentalReconcile::StochasticRemapping(unordered_map<Nod
                 }
                 else {
                     myfile << "Set of Moves: " << endl;
-                    int mu_lbl = Util::ToInt(find_genes_by_index[sv.gindex[sv_selected_index]]->GetLabel());
+                    int mu_lbl = Getspecieslbl(find_species_by_index[sv.gindex[sv_selected_index]], numintnodes);
                     unordered_set<Node*> nodes = hashtable[mu_lbl].return_max_heights();
                     unordered_set<Node*>::iterator itr;
                     for (itr = nodes.begin(); itr != nodes.end(); itr++) {
