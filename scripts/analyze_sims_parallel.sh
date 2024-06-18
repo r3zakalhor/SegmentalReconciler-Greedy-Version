@@ -163,3 +163,37 @@ do
 done
 
 
+
+# Function to calculate averages and write to a new CSV file
+calculate_averages() {
+    output_file="averages.csv"
+    echo "Avg(D(lca-simphy)),Avg(D(greedy-simphy)),Filename" > $output_file
+    
+    for dupcost in "${dupcost_values[@]}"
+    do
+        stats_out=$dir_name/test_stats_out_d${dupcost}_l1_t70_GV2_1.csv
+        
+        if [ -f $stats_out ]; then
+            sum_col1=0
+            sum_col2=0
+            count=0
+            
+            while IFS=, read -r col1 col2 _; do
+                if [ $count -ne 0 ]; then  # Skip the header line
+                    sum_col1=$(echo "$sum_col1 + $col1" | bc)
+                    sum_col2=$(echo "$sum_col2 + $col2" | bc)
+                fi
+                count=$((count + 1))
+            done < $stats_out
+            
+            if [ $count -gt 1 ]; then
+                avg_col1=$(echo "scale=2; $sum_col1 / ($count - 1)" | bc)
+                avg_col2=$(echo "scale=2; $sum_col2 / ($count - 1)" | bc)
+                echo "$avg_col1,$avg_col2,$stats_out" >> $output_file
+            fi
+        fi
+    done
+}
+
+# Call the function to calculate averages
+calculate_averages
