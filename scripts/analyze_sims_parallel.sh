@@ -11,7 +11,7 @@ gen_file_name="applied_loss_fix_all_genetrees_edited.txt"
 #gen_file_name="applied_loss_decBoth_all_genetrees_edited.txt"
 #gen_file_name="applied_loss_decNum_all_genetrees_edited.txt"
 
-str="D(lca-simphy),D(greedy-simphy),D(ultragreedy-simphy),Dif_square(simphy-LCA), Dif_square(simphy_greedy),C(simphy),DH(simphy),NBL(simphy),C(lca),DH(lca),NBL(lca),C(greedy),DH(greedy),NBL(greedy),C(ultragreedy),DH(ultragreedy),NBL(ultragreedy), max_nb_dup_species, sim number"
+str="D(lca-simphy),D(greedy-simphy),D(ultragreedy-simphy),Dif_square(simphy-LCA), Dif_square(simphy_greedy),C(simphy),DH(simphy),NBL(simphy),C(lca),DH(lca),NBL(lca),C(greedy),DH(greedy),NBL(greedy),C(ultragreedy),DH(ultragreedy),NBL(ultragreedy), nb genes in LCA (dup->spec), sim number"
 write_csv(){
     echo \"$1\",\"$2\",\"$3\",\"$4\",\"$5\",\"$6\",\"$7\",\"$8\",\"$9\",\"${10}\",\"${11}\",\"${12}\",\"${13}\",\"${14}\",\"${15}\",\"${16}\",\"${17}\",\"${18}\",\"${19}\" >> $stats_out
 }
@@ -107,7 +107,7 @@ do
 		
 		lca_cost100=$((lca_dupheight * 100)) 
 		lca_cost100=$((lca_cost5 + lca_nblosses)) 
-		
+		count_dup_spec=$(grep -o 'Dup_[^_]\{1,5\}_Spec' "$file" | wc -l)
 
 
 
@@ -151,7 +151,7 @@ do
 			if [ "$greedy_cost" -gt -1 ]; then
 				simphy_cost=$(eval echo \$simphy_cost${dupcost})
 				lca_cost=$(eval echo \$lca_cost${dupcost})
-				write_csv $distance_lca_simphy $distance_greedy_simphy $distance_ultragreedy_simphy $Sl_Sq $SG_Sq $simphy_cost $simphy_dupheight $simphy_nblosses $lca_cost $lca_dupheight $lca_nblosses $greedy_cost $greedy_dupheight $greedy_nblosses $ultragreedy_cost $ultragreedy_dupheight $ultragreedy_nblosses $maxheight $i
+				write_csv $distance_lca_simphy $distance_greedy_simphy $distance_ultragreedy_simphy $Sl_Sq $SG_Sq $simphy_cost $simphy_dupheight $simphy_nblosses $lca_cost $lca_dupheight $lca_nblosses $greedy_cost $greedy_dupheight $greedy_nblosses $ultragreedy_cost $ultragreedy_dupheight $ultragreedy_nblosses $count_dup_spec $i
 			fi
 			
 
