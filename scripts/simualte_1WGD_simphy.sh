@@ -59,7 +59,7 @@ do
 		python post-order-labeling.py $dir_name/$newname/source_s_tree.trees $dir_name/$newname/s_tree.newick
 
 		python map_gene_trees_oneWGD.py $dir_name/$newname/all_genetrees.txt $dir_name/$newname/all_genetrees_edited.txt $dir_name/$newname
-
+	fi
 
 done
 
