@@ -1,5 +1,5 @@
-#ifndef HASH
-#define HASH
+#ifndef HASH_CLASS
+#define HASH_CLASS
 
 #include <string>
 #include <iostream>
@@ -130,6 +130,7 @@ public:
            listofheights.resize(newsize);
         }
         listofheights[newdupheight].insert(g);
+
     }
 
     bool remove(int dupheight, Node* g)
@@ -184,4 +185,4 @@ public:
     }
 };
 
-#endif // HASH
+#endif // HASH_CLASS
