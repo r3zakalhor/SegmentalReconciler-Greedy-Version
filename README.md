@@ -1,20 +1,41 @@
 # SegmentalReconciler-Greedy-Version
 
-##### First of all, to compile segmental reconciler we can use the following command:
+#########
+COMPILING
+#########
 
-- $g++ -std=c++11 main.cpp define.h genespeciestreeutil.h hashtable.h multigenereconciler.h newicklex.h node.h SegmentalReconcile.h treeinfo.h treeiterator.h util.h genespeciestreeutil.cpp multigenereconciler.cpp newicklex.cpp node.cpp SegmentalReconcil.cpp treeinfo.cpp treeiterator.cpp  -o segmentalreconciler
+You can compile with the classic cmake - make approach, e.g. to build the exe in a build directory
+mkdir build
+cd build
+cmake ..
+make
 
-##### Then, we would be able to use ./segmentalreconciler by following command:
 
-- $./segmentalreconciler -d $dupcost -l $losscost -gf $GeneTreeFile -sf $SpeciesTreeFile -o $OutputFile -al $algorithm
+This will produce the 
+segrec 
+executable
 
-Where $algorithm specify the type of reconciliation which has 5 options:
+
+
+* If you'd really like to compile manually, you could do:
+g++ -std=c++11 main.cpp define.h genespeciestreeutil.h hashtable.h newicklex.h node.h SegmentalReconciler.h treeinfo.h treeiterator.h util.h genespeciestreeutil.cpp newicklex.cpp node.cpp SegmentalReconciler.cpp treeinfo.cpp treeiterator.cpp  -o segrec
+(possibly add optimization flags)
+
+#########
+USING
+#########
+
+Here is an example call 
+
+./segrec -d 5 -l 1 -gf ../data/gene_trees.txt -sf ../data/s_tree.newick -spsep "_" -spindex 0 -o output.txt -al greedy 
+
+
+The argument -al specifies the type of reconciliation which has 3 options:
 
 - simphy: Consider the original mapping from Simphy simulator.
 - LCA: Considers the LCA mapping.
-- ultragreedy: It goes through all the nodes and as soon as it finds a remap that reduces the cost, it applies it.
-- fastgreedy: It goes through all nodes and finds the best remap (has the lowest cost between all possible remapping for all nodes), then applies it and again iterates over all nodes until it finds a remap that improves the cost. (this algorithm is based on the changes which fast)
-- greedy: It works like fastgreedy but is slower.
+- anything else: Does greedy remapping
+
 
 ### Simphy
 
