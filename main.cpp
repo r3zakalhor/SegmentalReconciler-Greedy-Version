@@ -439,6 +439,12 @@ int main(int argc, char* argv[])
         ./segrec -d 5 -l 1 -gf ../data/gene_trees.txt -sf ../data/s_tree.newick -spsep "_" -spindex 0 -al greedy
         */
 
+        /*args["d"] = "100";
+        args["l"] = "1";
+        args["gf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_38\\all_genetrees.txt";
+        args["gf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_51\\applied_loss_fix_all_genetrees_edited.txt";
+        args["sf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_51\\s_tree.newick";
+        args["al"] = "stochastic";*/
 
         time_t start, end;
         time(&start);

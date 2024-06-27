@@ -163,7 +163,7 @@ void SegmentalReconciler::ComputeUpMove(GNode* g, SNode* s, RemapperInfo &remapi
 
 
 
-bool SegmentalReconciler::ComputeBulkMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo){
+bool SegmentalReconciler::ComputeBulkUpMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo){
 	
 	unordered_set<GNode*> gnodes = remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].return_max_heights();
 	
@@ -197,7 +197,7 @@ bool SegmentalReconciler::ComputeBulkMove(SNode* s_src, SNode* s_dest, RemapperI
 	
 	double costchange = nb_losses * remapinfo.losscost + max_dup_height_increase * remapinfo.dupcost;
 	
-	remapinfo.moves.AddBulkMove(max_dup_height_increase, nb_losses, costchange, s_src, s_dest);
+	remapinfo.moves.AddBulkUpMove(max_dup_height_increase, nb_losses, costchange, s_src, s_dest);
 	
     return true;
 }
@@ -206,7 +206,7 @@ bool SegmentalReconciler::ComputeBulkMove(SNode* s_src, SNode* s_dest, RemapperI
 
 
 
-void SegmentalReconciler::ApplyBulkMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo) {
+void SegmentalReconciler::ApplyBulkUpMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo) {
 	
 	unordered_set<GNode*> gnodes = remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].return_max_heights();
 	
@@ -261,13 +261,13 @@ void SegmentalReconciler::ApplyUpMove(GNode* g, SNode* s, RemapperInfo &remapinf
 	
 	
 	//now we do the actual remap, making sure that we update the hash table
-	for (GNode* g : nodes_to_remap){
-		remapinfo.curmap[g] = s;
+	for (GNode* g_cur : nodes_to_remap){
+		remapinfo.curmap[g_cur] = s;
 
-		int dupheight = GetDuplicationHeightUnder(g, s, remapinfo.curmap);
+		int dupheight = GetDuplicationHeightUnder(g_cur, s, remapinfo.curmap);
 		if (dupheight > 0) {
 			int slbl = Getspecieslbl(s, numintnodes);
-			remapinfo.hashtable[slbl].add_cell(dupheight, g);
+			remapinfo.hashtable[slbl].add_cell(dupheight, g_cur);
 		}
 	}
 }
@@ -343,22 +343,14 @@ void SegmentalReconciler::ComputeAllUpMoves(RemapperInfo& remapinfo) {
 
 
 
-void SegmentalReconciler::ComputeAllBulkMoves(RemapperInfo& remapinfo) {
+void SegmentalReconciler::ComputeAllBulkUpMoves(RemapperInfo& remapinfo) {
     //compute bulk moves for every species 
-    TreeIterator* it_s = speciesTree->GetPostOrderIterator();
+    TreeIterator* it_s = speciesTree->GetPreOrderIterator();
     while (SNode* s_src = it_s->next()) {
         if (remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].size() >= 1) {
             vector<SNode*> possibleremapping = GetPossibleUpRemaps(s_src);
             for (SNode* s_dest : possibleremapping) {
-                bool added_move = ComputeBulkMove(s_src, s_dest, remapinfo);
-
-                /*if (added_move) {
-                    myfile << "set of gene size of : " << remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].return_max_heights().size() <<
-                        " from " << s_src->GetLabel() << " -> " << s_dest->GetLabel()
-                        << " cost change: " << remapinfo.moves.GetMove(remapinfo.moves.GetNbMoves() - 1).delta_cost << endl;
-                }*/
-
-
+                bool added_move = ComputeBulkUpMove(s_src, s_dest, remapinfo);
             }
         }
     }
@@ -385,7 +377,7 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
 	remapinfo.UpdateBestMapping(cost, dupHeightSum, nbLosses);
 	    
 	bool done = false;
-    int stopStochastic = 0;
+    int stochasticLoops = 0;
 	
 	ofstream costs;
     costs.open("stochastic_cost_changes.txt");
@@ -396,8 +388,12 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
 		
 		if(stochastic){
 			
+            stochasticLoops++;
+
 			ComputeAllUpMoves(remapinfo);
-			ComputeAllBulkMoves(remapinfo);
+			ComputeAllBulkUpMoves(remapinfo);
+            ComputeAllDownMoves(remapinfo);
+            ComputeAllBulkDownMoves(remapinfo);
 			
 			//At this point, remapinfo.moves has all the moves.  If nothing can be done, we exit
 			if (remapinfo.moves.GetNbMoves() == 0){
@@ -407,16 +403,19 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
 			
 			bestmove = remapinfo.GetRandomMove();
 			
-			if (bestmove.delta_cost >= 0){
-				stopStochastic++;
-				if(stopStochastic == 100){ // If nothing improves after 100 moves, we stop
-					done = true;
-					break;	//evil break
-				}
+            stochasticLoops++;
+            if (stochasticLoops % 50 == 0) {
+                cout << "Loops: " << stochasticLoops << endl;
+            }
+
+			//if (bestmove.delta_cost >= 0){
+				
+			if(stochasticLoops >= 2000){ // If nothing improves after 100 moves, we stop
+				done = true;
+				break;	//evil break
 			}
-			else{
-				stopStochastic = 0;
-			}
+			//}
+			
 			costs << bestmove.delta_cost << endl;
 		}
 		
@@ -435,12 +434,14 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
 			
 			if (bestmove.delta_cost > 0) {
 
-				//if no move is good, try bulk moves
-				ComputeAllBulkMoves(remapinfo);
+				//if no move is good, try bulk/down moves
+                ComputeAllDownMoves(remapinfo);
+                ComputeAllBulkDownMoves(remapinfo);
+                ComputeAllBulkUpMoves(remapinfo);
 				bestmove = remapinfo.GetBestMove();
 				
 				//if stil lnothing, give up
-				if (remapinfo.moves.GetNbMoves() == 0 || bestmove.delta_cost > 0) {
+				if (remapinfo.moves.GetNbMoves() == 0 || bestmove.delta_cost >= 0) {
 					done = true;
 					break;	//evil break
 				}
@@ -452,9 +453,13 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
         
 
 		if (bestmove.type == UpMove)
-			ApplyUpMove(bestmove.g, bestmove.s, remapinfo);
-		else if (bestmove.type == BulkMove)
-			ApplyBulkMove(bestmove.s_src, bestmove.s_dest, remapinfo);
+            ApplyUpMove(bestmove.g, bestmove.s, remapinfo);
+        else if (bestmove.type == DownMove)
+            ApplyDownMove(bestmove.g, bestmove.s, remapinfo);
+        else if (bestmove.type == BulkUpMove)
+            ApplyBulkUpMove(bestmove.s_src, bestmove.s_dest, remapinfo);
+        else if (bestmove.type == BulkDownMove)
+            ApplyBulkDownMove(bestmove.s_src, bestmove.s_dest, remapinfo);
 		
 		if(stochastic){
 			dupHeightSum = GetDupHeightSum(remapinfo.hashtable);
@@ -973,7 +978,335 @@ int SegmentalReconciler::GetSpeciesTreeDistance(Node* x, Node* y)
 
 
 
+void SegmentalReconciler::ComputeAllDownMoves(RemapperInfo& remapinfo) {
+    //TODO: this is copy-pasted from ComputeAllUpMoves, consider merging
+    
+    //compute down moves for every gene tree node
+    for (int i = 0; i < geneTrees.size(); i++) {
+        GNode* g_root = geneTrees[i];
+
+        TreeIterator* it = g_root->GetPreOrderIterator();	//needs to be preorder for DP to work
+        while (GNode* g = it->next()) {
+            if (!g->IsLeaf()) {
+                SNode* mu = remapinfo.curmap[g];
+                vector<SNode*> possibleremapping = GetPossibleDownRemaps(g, remapinfo.curmap);
+
+                for (SNode* s : possibleremapping) {
+                    ComputeDownMove(g, s, remapinfo);
+                }
+            }
+        }
+        g_root->CloseIterator(it);
+    }
+
+}
+
+
+
+bool SegmentalReconciler::ComputeDownMove(GNode* g, SNode* s, RemapperInfo& remapinfo) {
+
+    SNode* mu_orig = remapinfo.curmap[g];
+
+    //get ancestors of g also mapped to mu, last element is the root of the dup subtree in mu_orig
+    vector<GNode*> ancestors_with_same_mu = { g };
+    while (!ancestors_with_same_mu.back()->IsRoot() && remapinfo.curmap[ancestors_with_same_mu.back()->GetParent()] == mu_orig) {
+        ancestors_with_same_mu.push_back(ancestors_with_same_mu.back()->GetParent());
+    }
+
+    int dh_s_pre = GetDupHeight(s, remapinfo);
+    int dh_mu_pre = GetDupHeight(mu_orig, remapinfo);
+
+    int nb_losses_pre = 0;
+
+    nb_losses_pre += this->GetNbLossesOnParentBranch(g, remapinfo.curmap);
+    nb_losses_pre += this->GetNbLossesOnParentBranch(g->GetChild(0), remapinfo.curmap);
+    nb_losses_pre += this->GetNbLossesOnParentBranch(g->GetChild(1), remapinfo.curmap);
+
+
+    
+
+    //idea is to temporarily remap g to s, and put it back after.
+    //if you add an return "return" to this function for some reason, make sure you put mu_orig back
+    int nb_losses_post = 0;
+    remapinfo.curmap[g] = s;
+
+    nb_losses_post += this->GetNbLossesOnParentBranch(g, remapinfo.curmap);
+    nb_losses_post += this->GetNbLossesOnParentBranch(g->GetChild(0), remapinfo.curmap);
+    nb_losses_post += this->GetNbLossesOnParentBranch(g->GetChild(1), remapinfo.curmap);
+
+    //check changes in dup heights for s and mu_orig
+    int local_dh_s_post = GetDuplicationHeightUnder(g, s, remapinfo.curmap);
+    int local_dh_mu_post = GetDuplicationHeightUnder(ancestors_with_same_mu.back(), mu_orig, remapinfo.curmap);
+
+    remapinfo.curmap[g] = mu_orig;
+
+    //dup height in s has changed only if remapping g to s created a higher dup subtree
+    int dh_s_post = dh_s_pre;
+    if (local_dh_s_post > remapinfo.hashtable[Getspecieslbl(s, numintnodes)].size())
+        dh_s_post = local_dh_s_post;
+
+    //dup height in mu changed only if highest ancestor is now the root of a smaller subtree, and no other large subtree exists
+    int dh_mu_post = dh_mu_pre;
+    int mulbl = Getspecieslbl(mu_orig, numintnodes);
+
+    //case 1: dup subtree in mu height reduced by 1, and was unique max
+    if (local_dh_mu_post == dh_mu_pre - 1 && remapinfo.hashtable[mulbl].is_unique_max(ancestors_with_same_mu.back())) {
+        dh_mu_post = local_dh_mu_post;
+    }
+    //case 2: dup subtree height reduced by 2 because parent of g became a spec
+    else if (local_dh_mu_post == dh_mu_pre - 2) {
+        if (remapinfo.hashtable[mulbl].is_unique_max(ancestors_with_same_mu.back())) {
+            dh_mu_post = dh_mu_pre -1;
+
+            if (remapinfo.hashtable[mulbl].is_unique_after_max(ancestors_with_same_mu.end()[-2])) {
+                dh_mu_post = dh_mu_pre - 2;
+            }
+        }
+    }
+    else if (local_dh_mu_post > dh_mu_pre){
+        std::cout << "Remapping g to s made local_dh_mu_post=" << local_dh_mu_post << " and dh_mu_pre=" << dh_mu_pre << endl;
+        throw "local_dh_mu_post makes no sense";
+    }
+
+
+    
+
+    int diff_loss = nb_losses_post - nb_losses_pre;
+    int diff_dh = dh_s_post - dh_s_pre + dh_mu_post - dh_mu_pre;
+
+
+    remapinfo.lambda_gs[g][s] = diff_loss;
+    remapinfo.delta_gs[g][s] = diff_dh;
+    remapinfo.delta_gst[g][s][s] = dh_s_post - dh_s_pre;
+    remapinfo.delta_gst[g][s][mu_orig] = dh_mu_post - dh_mu_pre;
+
+    double costchange = diff_loss * remapinfo.losscost + diff_dh * remapinfo.dupcost;
+
+    remapinfo.moves.AddDownMove(diff_dh, diff_loss, costchange, g, s);
+
+    return true;
+}
+
+
+int SegmentalReconciler::GetNbLossesOnParentBranch(GNode* g_child, GSMap& curmap) {
+    if (g_child->IsRoot())
+        return 0;
+    
+    bool parent_isdup = this->IsDuplication(g_child->GetParent(), curmap);
+
+    int losses = GetSpeciesTreeDistance(curmap[g_child->GetParent()], curmap[g_child]);
+
+    if (!parent_isdup) {
+        losses -= 1;
+    }
+
+    return losses;
+
+}
+
+
+int SegmentalReconciler::GetDupHeight(SNode* s, RemapperInfo& remapinfo) {
+    int slbl = Getspecieslbl(s, numintnodes);
+    return remapinfo.hashtable[slbl].size();
+}
+
+
+
+vector<SNode*> SegmentalReconciler::GetPossibleDownRemaps(GNode* gnode, GSMap& gsmap)
+{
+    vector<SNode*> sp;
+
+    if (gnode->IsLeaf())
+        return sp;
+
+    SNode* curnode = gsmap[gnode->GetChild(0)]->FindLCAWith(gsmap[gnode->GetChild(1)]);
+
+    while (curnode != gsmap[gnode])
+    {
+        sp.push_back(curnode);
+        curnode = curnode->GetParent();
+    }
+
+    return sp;
+}
 
 
 
 
+void SegmentalReconciler::ApplyDownMove(GNode* g, SNode* s, RemapperInfo& remapinfo) {
+    
+    SNode* mu = remapinfo.curmap[g];
+    
+    //get ancestors of g also mapped to mu, last element is the root of the dup subtree in mu_orig
+    //TODO: duped code in ComputeDownMove
+    vector<GNode*> ancestors_with_same_mu = { g };
+    while (!ancestors_with_same_mu.back()->IsRoot() && remapinfo.curmap[ancestors_with_same_mu.back()->GetParent()] == mu) {
+        ancestors_with_same_mu.push_back(ancestors_with_same_mu.back()->GetParent());
+    }
+    
+   
+
+
+    //important for hashtable data structure to do it in reverse
+    for (int j = ancestors_with_same_mu.size() - 1; j >= 0; j--) {
+        GNode* g_cur = ancestors_with_same_mu[j];
+
+        if (IsDuplication(g_cur, remapinfo.curmap)) {
+            int mulbl = Getspecieslbl(mu, numintnodes);
+            int dupheight = GetDuplicationHeightUnder(g_cur, mu, remapinfo.curmap);
+            remapinfo.hashtable[mulbl].remove(dupheight, g_cur);
+        }
+    }
+
+
+    //now we do the actual remap, making sure that we update the hash table
+    remapinfo.curmap[g] = s;
+
+    int dupheight = GetDuplicationHeightUnder(g, s, remapinfo.curmap);
+    if (dupheight > 0) {
+        int slbl = Getspecieslbl(s, numintnodes);
+        remapinfo.hashtable[slbl].add_cell(dupheight, g);
+    }
+
+    //start at 1 to skip g
+    for (int j = 1; j < ancestors_with_same_mu.size(); ++j) {
+        GNode* g_cur = ancestors_with_same_mu[j];
+
+        if (IsDuplication(g_cur, remapinfo.curmap)) {
+            int mulbl = Getspecieslbl(mu, numintnodes);
+            int dupheight = GetDuplicationHeightUnder(g_cur, mu, remapinfo.curmap);
+            remapinfo.hashtable[mulbl].add_cell(dupheight, g_cur);
+        }
+    }
+}
+
+
+
+
+void SegmentalReconciler::ComputeAllBulkDownMoves(RemapperInfo &remapinfo) {
+
+    //compute bulk moves for every species 
+    TreeIterator* it_s = speciesTree->GetPreOrderIterator();
+    while (SNode* s_src = it_s->next()) {
+        
+        
+        int max_height = remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].size();
+        unordered_set<GNode*> gnodes = remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].return_max_heights();
+
+        //gnodes contains the topmost dups, but here we want those at depth max_height
+        vector<GNode*> deepest_nodes;
+        for (GNode* g_cur : gnodes) {
+            GetDupsAtDepth(g_cur, s_src, remapinfo.curmap, max_height, 1, deepest_nodes);
+        }
+
+        set<SNode*> possibleremaps;
+        bool firstfill = true;
+
+        //omg this is a slooow way of finding the species that all deepestnodes can map to
+        for (GNode* g : deepest_nodes) {
+            vector<SNode*> vec = GetPossibleDownRemaps(g, remapinfo.curmap);
+            set<SNode*> setvec = set<SNode*>(vec.begin(), vec.end());
+
+
+            if (firstfill) {
+                possibleremaps = setvec;
+                firstfill = false;
+            }
+            else {
+
+                set<SNode*> inter;
+                std::set_intersection(possibleremaps.begin(), possibleremaps.end(), setvec.begin(), setvec.end(),
+                                    std::inserter(inter, inter.begin()));
+                possibleremaps = inter;
+            }
+        }
+
+
+        for (SNode* s_dest : possibleremaps) {
+            ComputeBulkDownMove(s_src, s_dest, deepest_nodes, remapinfo);
+        }
+
+    }
+
+    speciesTree->CloseIterator(it_s);
+    
+}
+
+
+
+bool SegmentalReconciler::ComputeBulkDownMove(SNode* s_src, SNode* s_dest, vector<GNode*> &deepest_nodes, RemapperInfo& remapinfo) {
+    
+    if (deepest_nodes.size() <= 1) {    //bulk move must include two genes
+        return false;
+    }
+
+
+    int nb_losses = 0;
+    int max_delta_gss = 0;
+    bool all_reduce_by_two = true;
+
+    for (GNode* g : deepest_nodes) {
+        nb_losses += remapinfo.lambda_gs[g][s_dest];
+
+        /*
+        Idea of this below: each deepest may increase the height in s_dest by 1, and if one of them does the max will record a +1
+        As for s_src, either we reduce the height by 1 by remapping every deepest node, or we reduce by 2 if all
+        remaps reduce by 2.  
+        */
+        max_delta_gss = max(max_delta_gss, remapinfo.delta_gst[g][s_dest][s_dest]);
+        if (remapinfo.delta_gst[g][s_dest][s_src] > -2)
+            all_reduce_by_two = false;
+    }
+
+    int delta_gs_mu = -1;
+    if (all_reduce_by_two)
+        delta_gs_mu = -2;
+
+    int delta_dup = delta_gs_mu + max_delta_gss;
+
+    double costchange = nb_losses * remapinfo.losscost + delta_dup * remapinfo.dupcost;
+
+    remapinfo.moves.AddBulkDownMove(delta_dup, nb_losses, costchange, s_src, s_dest);
+
+    return true;
+
+
+
+}
+
+
+
+void SegmentalReconciler::GetDupsAtDepth(GNode* curnode, SNode* s, GSMap& curmap, int target_depth, int cur_depth, vector<GNode*>& vec_to_fill) {
+    if (curmap[curnode] != s  || !this->IsDuplication(curnode, curmap))
+        return;
+    if (cur_depth > target_depth)
+        return;
+    
+    //at this point, g is a dup mapped to s
+    if (cur_depth == target_depth) {
+        vec_to_fill.push_back(curnode);
+        return; //we won't find anything deeper, so stop it
+    }
+    else {
+        GetDupsAtDepth(curnode->GetChild(0), s, curmap, target_depth, cur_depth + 1, vec_to_fill);
+        GetDupsAtDepth(curnode->GetChild(1), s, curmap, target_depth, cur_depth + 1, vec_to_fill);
+    }
+}
+
+
+
+
+void SegmentalReconciler::ApplyBulkDownMove(SNode* s_src, SNode* s_dest, RemapperInfo& remapinfo) {
+    //TODO: code is duped with ComputeAllBulkDownMoves
+    int max_height = remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].size();
+    unordered_set<GNode*> gnodes = remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].return_max_heights();
+
+    vector<GNode*> deepest_nodes;
+    for (GNode* g_cur : gnodes) {
+        GetDupsAtDepth(g_cur, s_src, remapinfo.curmap, max_height, 1, deepest_nodes);
+    }
+
+    for(GNode * g : deepest_nodes) {
+        ApplyDownMove(g, s_dest, remapinfo);
+    }
+}

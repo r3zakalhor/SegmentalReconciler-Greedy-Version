@@ -33,7 +33,7 @@ using namespace std;
 
 
 
-enum MoveType { UpMove, DownMove, BulkMove };
+enum MoveType { UpMove, DownMove, BulkUpMove, BulkDownMove };
 
 /**
 Represent a possible remapping move.  Depending on the type of move, different variables will be set.  
@@ -92,9 +92,17 @@ struct RemapMove{
 			std::cout << "Upmove: Remap g=" << g->GetLabel() << " to s=" << s->GetLabel() 
 					  << "  delta_dup=" << this->delta_dup << "  delta_loss=" << delta_loss << "  delta_cost=" << delta_cost << endl;
 		}
-		else {
-			std::cout << "Bulk move: Remap s_src=" << s_src->GetLabel() << " to s_dest=" << s_dest->GetLabel()
+		else if (type == DownMove) {
+			std::cout << "Downmove: Remap g=" << g->GetLabel() << " to s=" << s->GetLabel()
+				<< "  delta_dup=" << this->delta_dup << "  delta_loss=" << delta_loss << "  delta_cost=" << delta_cost << endl;
+		}
+		else if (type == BulkUpMove) {
+			std::cout << "Bulk up move: Remap s_src=" << s_src->GetLabel() << " to s_dest=" << s_dest->GetLabel()
 					  << "  delta_dup=" << delta_dup << "  delta_loss=" << delta_loss << "  delta_cost=" << delta_cost << endl;
+		}
+		else if (type == BulkDownMove) {
+			std::cout << "Bulk down move: Remap s_src=" << s_src->GetLabel() << " to s_dest=" << s_dest->GetLabel()
+				<< "  delta_dup=" << delta_dup << "  delta_loss=" << delta_loss << "  delta_cost=" << delta_cost << endl;
 		}
 	}
 	
@@ -112,9 +120,12 @@ public:
 	size_t best_move_index = -1;
 	size_t random_move_index = -1;
 
+	double stochastic_temperature;	//initialized in constructor
+
 	RemapMoveList() {
 		best_move_index = -1;
 		random_move_index = -1;
+		stochastic_temperature = 1;
 	}
 	
 	void Reset(){
@@ -127,7 +138,7 @@ public:
 	void AddUpMove(int delta_dup, int delta_loss, double delta_cost, Node* g, Node* s)
 	{
 		RemapMove mv(UpMove, delta_dup, delta_loss, delta_cost, g, s);
-		mv.prob = std::exp(- delta_cost / (3)); // boltzman_distribution
+		mv.prob = std::exp(- delta_cost / (stochastic_temperature)); // boltzman_distribution
 		moves.push_back(mv);
 		
 		//update best move index
@@ -138,17 +149,49 @@ public:
 	
 	
 	
-	void AddBulkMove(int delta_dup, int delta_loss, double delta_cost, Node* s_src, Node* s_dest)
+	void AddBulkUpMove(int delta_dup, int delta_loss, double delta_cost, Node* s_src, Node* s_dest)
 	{
-		RemapMove mv(BulkMove, delta_dup, delta_loss, delta_cost);
+		RemapMove mv(BulkUpMove, delta_dup, delta_loss, delta_cost);
 		mv.s_src = s_src;
 		mv.s_dest = s_dest;
-		mv.prob = std::exp(- delta_cost / (3)); // boltzman_distribution
+		mv.prob = std::exp(- delta_cost / (stochastic_temperature)); // boltzman_distribution
 		moves.push_back(mv);
 		
 		
 		//update best move index
 		if (best_move_index == -1 || delta_cost <= moves[best_move_index].delta_cost){
+			best_move_index = moves.size() - 1;
+		}
+	}
+	
+	
+	
+	
+	void AddDownMove(int delta_dup, int delta_loss, double delta_cost, Node* g, Node* s)
+	{
+		RemapMove mv(DownMove, delta_dup, delta_loss, delta_cost, g, s);
+		mv.prob = std::exp(-delta_cost / (stochastic_temperature)); // boltzman_distribution
+		moves.push_back(mv);
+
+		//update best move index
+		if (best_move_index == -1 || delta_cost <= moves[best_move_index].delta_cost) {
+			best_move_index = moves.size() - 1;
+		}
+	}
+
+
+
+	void AddBulkDownMove(int delta_dup, int delta_loss, double delta_cost, Node* s_src, Node* s_dest)
+	{
+		RemapMove mv(BulkDownMove, delta_dup, delta_loss, delta_cost);
+		mv.prob = std::exp(-delta_cost / (stochastic_temperature)); // boltzman_distribution
+		mv.s_src = s_src;
+		mv.s_dest = s_dest;
+		moves.push_back(mv);
+
+
+		//update best move index
+		if (best_move_index == -1 || delta_cost <= moves[best_move_index].delta_cost) {
 			best_move_index = moves.size() - 1;
 		}
 	}
@@ -407,10 +450,10 @@ private:
     vector<SNode*> GetPossibleUpRemaps(SNode* spnode);
 	
 	void ComputeUpMove(GNode* g, SNode* s, RemapperInfo &remapinfo);
-	bool ComputeBulkMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo);
+	bool ComputeBulkUpMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo);
 	
 	void ApplyUpMove(GNode* g, SNode* s, RemapperInfo &remapinfo);
-	void ApplyBulkMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo);
+	void ApplyBulkUpMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo);
 	
 
     //Returns the number of edges between x and y in the species tree.  x and y must be comparable.
@@ -420,9 +463,23 @@ private:
 
 	void ComputeAllUpMoves(RemapperInfo& remapinfo);
 
-	void ComputeAllBulkMoves(RemapperInfo& remapinfo);
+	void ComputeAllBulkUpMoves(RemapperInfo& remapinfo);
 	
-	
+	void ComputeAllDownMoves(RemapperInfo& remapinfo);
+
+	vector<SNode*> GetPossibleDownRemaps(GNode* gnode, GSMap& gsmap);
+	void ApplyDownMove(GNode* g, SNode* s, RemapperInfo& remapinfo);
+	bool ComputeBulkDownMove(SNode* s_src, SNode* s_dest, vector<GNode*>& deepest_nodes, RemapperInfo& remapinfo);
+	void ComputeAllBulkDownMoves(RemapperInfo& remapinfo);
+	void ApplyBulkDownMove(SNode* s_src, SNode* s_dest, RemapperInfo& remapinfo);
+
+	bool ComputeDownMove(GNode* g, SNode* s, RemapperInfo& remapinfo);
+
+	int GetNbLossesOnParentBranch(GNode* g_child, GSMap& curmap);
+	int GetDupHeight(SNode* s, RemapperInfo& remapinfo);
+
+	//returns gene tree nodes that are dups mapped to s, at depth target_depth (no return, fills the vector instead)
+	void GetDupsAtDepth(GNode* curnode, SNode* s, GSMap& curmap, int target_depth, int cur_depth, vector<GNode*>& vec_to_fill);
 };
 
 

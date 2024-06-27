@@ -79,6 +79,26 @@ public:
         return false;
     }
 
+
+
+    bool is_unique_after_max(Node* g) {
+        if (listofheights.size() >= 2) {
+            int size = listofheights.size() - 2;
+            if (listofheights[size].size() == 1) {
+                unordered_set<Node*>::iterator itr;
+                for (itr = listofheights[size].begin(); itr != listofheights[size].end(); itr++)
+                    if ((*itr)->GetIndex() == g->GetIndex()) {
+                        return true;
+                    }
+            }
+        }
+        return false;
+    }
+
+
+
+
+
     bool is_unique_element(Node* g, int height) {
         if (listofheights[height].size() == 1) {
             unordered_set<Node*>::iterator itr;
@@ -175,13 +195,17 @@ public:
                     cout << it->operator [](j)->GetLabel() << ", ";
                     //cout << listofheights[i][j].liGetLabel() << ", "; // You can access elements calling the operator[] , you need an iterator.
                 }*/
+                bool has_one = false;
                 unordered_set<Node *>::iterator itr;
-                for (itr = listofheights[i].begin(); itr != listofheights[i].end(); itr++)
+                for (itr = listofheights[i].begin(); itr != listofheights[i].end(); itr++) {
                     cout << (*itr)->GetLabel() << ", ";
-                cout << "          " << endl;
+                    has_one = true;
+                }
+                if (has_one)
+                    cout << "          " << endl;
             }
         }
-        cout << endl;
+        //cout << endl;
     }
 };
 
