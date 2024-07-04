@@ -379,7 +379,7 @@ class SegmentalReconciler
 {
 public:
 
-    SegmentalReconciler(vector<Node*>& geneTrees, Node* speciesTree, GSMap& leaf_species_map, double dupcost, double losscost, int nbspecies, int nbgenes, int numintnodes, bool stochastic);
+    SegmentalReconciler(vector<Node*>& geneTrees, Node* speciesTree, GSMap& leaf_species_map, double dupcost, double losscost, int nbspecies, int nbgenes, int numintnodes, bool stochastic, double stochastic_temperature, int nbstochasticLoops);
 
     /**
      * @brief Reconcile
@@ -424,6 +424,8 @@ private:
     int nbspecies, numintnodes;
     int nbgenes;
 	bool stochastic;
+	double stochastic_temperature;
+	int nbstochasticLoops;
 	
 	unordered_map< Node*, unordered_map<Node*, int> > speciesTreeDistances;
     

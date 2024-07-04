@@ -149,8 +149,9 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     int species_index = 0;
     double dupcost = 2;
     double losscost = 1;
-    
-
+    double stochastic_temperature = 1;
+	int nbstochasticLoops = 2000;
+	
     //parse dup loss cost and max dup height
     if (args.find("d") != args.end()){
         dupcost = Util::ToDouble(args["d"]);
@@ -160,6 +161,12 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     }
     if (args.find("al") != args.end()){
         algorithm = args["al"];
+    }
+	if (args.find("tmp") != args.end()){
+        stochastic_temperature = Util::ToDouble(args["tmp"]);
+    }
+	if (args.find("stoloops") != args.end()){
+        nbstochasticLoops = Util::ToInt(args["stoloops"]);
     }
     string outfile = "";
     if (args.find("o") != args.end()){
@@ -291,7 +298,7 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
 	if (algorithm == "stochastic"){
 		stochastic = true;
 	}
-    SegmentalReconciler reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, nbspecies, nbgenes, numintnodes, stochastic);
+    SegmentalReconciler reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, nbspecies, nbgenes, numintnodes, stochastic, stochastic_temperature, nbstochasticLoops);
     cout << "dupcost: " << dupcost << " losscost: " << losscost << endl;
     
 	if (algorithm == "lca"){

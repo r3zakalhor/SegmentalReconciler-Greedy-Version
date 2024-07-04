@@ -2,19 +2,19 @@
 #include <random>
 #include <ctime>
 
-SegmentalReconciler::SegmentalReconciler(vector<Node*>& geneTrees, Node* speciesTree, GSMap& leaf_species_map, double dupcost, double losscost, int nbspecies, int nbgenes, int numintnodes, bool stochastic)
+SegmentalReconciler::SegmentalReconciler(vector<Node*>& geneTrees, Node* speciesTree, GSMap& leaf_species_map, double dupcost, double losscost, int nbspecies, int nbgenes, int numintnodes, bool stochastic, double stochastic_temperature, int nbstochasticLoops)
 {
     this->geneTrees = geneTrees;
     this->speciesTree = speciesTree;
     this->leaf_species_map = leaf_species_map;
     this->dupcost = dupcost;
     this->losscost = losscost;
-    
 	this->nbspecies = nbspecies;
     this->numintnodes = numintnodes;
     this->nbgenes = nbgenes;
     this->stochastic = stochastic;
-    
+    this->stochastic_temperature = stochastic_temperature;
+	this->nbstochasticLoops = nbstochasticLoops;
 }
 
 
@@ -279,6 +279,7 @@ void SegmentalReconciler::ApplyUpMove(GNode* g, SNode* s, RemapperInfo &remapinf
 RemapperInfo SegmentalReconciler::BuildRemapperInfo(){
 	
 	RemapperInfo remapinfo;
+	remapinfo.moves.stochastic_temperature = stochastic_temperature;
 	remapinfo.curmap = GetLCAMapping();	//maybe slow
 	remapinfo.dupcost = this->dupcost;
 	remapinfo.losscost = this->losscost;
@@ -410,7 +411,7 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
 
 			//if (bestmove.delta_cost >= 0){
 				
-			if(stochasticLoops >= 2000){ // If nothing improves after 100 moves, we stop
+			if(stochasticLoops >= nbstochasticLoops){ // If nothing improves after 100 moves, we stop
 				done = true;
 				break;	//evil break
 			}
