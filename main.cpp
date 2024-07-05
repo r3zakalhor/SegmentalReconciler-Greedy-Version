@@ -9,6 +9,8 @@
 #include "SegmentalReconciler.h"
 
 
+#include "ReconciliationTester.h"
+
 using namespace std;
 
 
@@ -424,6 +426,12 @@ int main(int argc, char* argv[])
     {
         PrintHelp();
     }
+    else if (args.count("testout")) {
+        string filename = args["testout"];
+        //filename = "C:\\cygwin64\\home\\Manuel\\git\\SegmentalReconciler-Greedy-Version\\data\\sim_4\\out_stochastic100.txt";
+        ReconciliationTester tester;
+        tester.ReadSegrecFile(filename);
+    }
     else
     {
         //ML's ad-hoc testing stuff for Windows.
@@ -452,6 +460,9 @@ int main(int argc, char* argv[])
         args["gf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_51\\applied_loss_fix_all_genetrees_edited.txt";
         args["sf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_51\\s_tree.newick";
         args["al"] = "stochastic";*/
+
+        
+
 
         time_t start, end;
         time(&start);
