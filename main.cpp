@@ -146,6 +146,7 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     vector<GNode*> geneTrees;
     SNode* speciesTree = NULL;
 
+
     string algorithm;
     string species_separator = "_";
     int species_index = 0;
@@ -153,6 +154,8 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     double losscost = 1;
     double stochastic_temperature = 1;
 	int nbstochasticLoops = 2000;
+
+    int max_remap_distance = 999999;
 	
     //parse dup loss cost and max dup height
     if (args.find("d") != args.end()){
@@ -169,6 +172,10 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     }
 	if (args.find("stoloops") != args.end()){
         nbstochasticLoops = Util::ToInt(args["stoloops"]);
+    }
+    if (args.find("maxremap") != args.end()) {
+        max_remap_distance = Util::ToInt(args["maxremap"]);
+        cout << "Max remap distance set to " << max_remap_distance << endl;
     }
     string outfile = "";
     if (args.find("o") != args.end()){
@@ -303,6 +310,8 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     SegmentalReconciler reconciler(geneTrees, speciesTree, geneSpeciesMapping, dupcost, losscost, nbspecies, nbgenes, numintnodes, stochastic, stochastic_temperature, nbstochasticLoops);
     cout << "dupcost: " << dupcost << " losscost: " << losscost << endl;
     
+    reconciler.SetMaxRemapDistance(max_remap_distance);
+
 	if (algorithm == "lca"){
 		info = reconciler.ReconcileWithLCAMap();
 	}
@@ -451,7 +460,10 @@ int main(int argc, char* argv[])
         args["al"] = "fastgreedy";
 
         Example call:
-        ./segrec -d 5 -l 1 -gf ../data/gene_trees.txt -sf ../data/s_tree.newick -spsep "_" -spindex 0 -al greedy
+        ./segrec -d 5 -l 1 -gf ../data/gene_trees.txt -sf ../data/s_tree.newick -spsep "_" -spindex 0 -al fastgreedy
+
+        from build dir:
+        ./segrec -sf "../data/sim_4/s_tree.newick" -gf "../data/sim_4/applied_loss_fix_all_genetrees_edited.txt" -d 10 -l 1 -al fastgreedy -maxremap 5
         */
 
         /*args["d"] = "100";

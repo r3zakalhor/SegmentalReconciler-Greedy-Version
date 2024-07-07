@@ -46,13 +46,13 @@ struct RemapMove{
 	
 	MoveType type;
 	
-	int delta_dup;
-	int delta_loss;
-	double delta_cost;
-	double prob;
+	int delta_dup = 0;
+	int delta_loss = 0;
+	double delta_cost = 0;
+	double prob = 0;
 	
-	GNode* g;
-	SNode* s;
+	GNode* g = nullptr;
+	SNode* s = nullptr;
 	
 	SNode* s_src;
 	SNode* s_dest;
@@ -64,6 +64,9 @@ struct RemapMove{
 		s_src = nullptr;
 		s_dest = nullptr;
 		delta_dup = -1;
+		delta_loss = -1;
+		delta_cost = 0;
+		prob = 0;
 	}
 	
 	
@@ -311,6 +314,7 @@ public:
 	int bestNblosses;
 	
 	
+	
 	//these are reset every iteration
 	unordered_map<GNode*, unordered_map<SNode*, int> > chain_lengths;
 	RemapMoveList moves;
@@ -318,6 +322,10 @@ public:
 	map< GNode*, map< SNode*, int > > delta_gs;	//delta_gs[g, s] = change in all dup heights if we remap to s
 	map< GNode*, map< SNode*, int > > lambda_gs;	//lambda_gs[g, s] = change in all losses if we remap to s
 	
+
+	RemapperInfo() {
+		
+	}
 	
 	void Reset()
 	{
@@ -414,6 +422,13 @@ public:
      */
     bool IsDuplication(Node* g, unordered_map<Node*, Node*>& partialMapping);
 
+
+
+	void SetMaxRemapDistance(int remapdist) {
+		max_remap_distance = remapdist;
+	}
+
+
 private:
 
     vector<Node*> geneTrees;
@@ -426,6 +441,10 @@ private:
 	bool stochastic;
 	double stochastic_temperature;
 	int nbstochasticLoops;
+
+	//this is to limit the possible remappings
+	int max_remap_distance = 999999;		//tells how far from lca-map a gene can go, in number of species, default = very high
+	GSMap lcamap;	//should be set initially to measure how far we are
 	
 	unordered_map< Node*, unordered_map<Node*, int> > speciesTreeDistances;
     
@@ -449,7 +468,9 @@ private:
     int GetDuplicationHeightUnder(Node* g, Node* species, GSMap& curmap);
 
     //returns the list of nodes on which minimalNode can be mapped to
-    vector<SNode*> GetPossibleUpRemaps(SNode* spnode);
+	//if lcamap_node != nullptr, will only return nodes that are at distance less than max_remap_distance
+	//if lcamap_node == nullptr, returns all ancestors of spnode
+    vector<SNode*> GetPossibleUpRemaps(SNode* spnode, SNode* lcamap_node);
 	
 	void ComputeUpMove(GNode* g, SNode* s, RemapperInfo &remapinfo);
 	bool ComputeBulkUpMove(SNode* s_src, SNode* s_dest, RemapperInfo &remapinfo);
@@ -482,6 +503,9 @@ private:
 
 	//returns gene tree nodes that are dups mapped to s, at depth target_depth (no return, fills the vector instead)
 	void GetDupsAtDepth(GNode* curnode, SNode* s, GSMap& curmap, int target_depth, int cur_depth, vector<GNode*>& vec_to_fill);
+
+
+	
 };
 
 

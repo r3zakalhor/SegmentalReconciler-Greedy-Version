@@ -15,18 +15,30 @@ SegmentalReconciler::SegmentalReconciler(vector<Node*>& geneTrees, Node* species
     this->stochastic = stochastic;
     this->stochastic_temperature = stochastic_temperature;
 	this->nbstochasticLoops = nbstochasticLoops;
+
+    this->max_remap_distance = 999999;
 }
 
 
 
-vector<SNode*> SegmentalReconciler::GetPossibleUpRemaps(SNode* spnode)
+vector<SNode*> SegmentalReconciler::GetPossibleUpRemaps(SNode* spnode, SNode* lcamap_node)
 {
 	vector<SNode*> sp;
+
+    bool still_within_dist = true;
 	
-	while (!spnode->IsRoot())
+	while (!spnode->IsRoot() && still_within_dist)
 	{
 		spnode = spnode->GetParent();
-		sp.push_back(spnode);
+
+        if (lcamap_node && max_remap_distance < 99999) {
+            if (GetSpeciesTreeDistance(spnode, lcamap_node) > max_remap_distance) {
+                still_within_dist = false;
+            }
+        }
+
+        if (still_within_dist)
+		    sp.push_back(spnode);
 	}
 	
 	return sp;
@@ -280,7 +292,9 @@ RemapperInfo SegmentalReconciler::BuildRemapperInfo(){
 	
 	RemapperInfo remapinfo;
 	remapinfo.moves.stochastic_temperature = stochastic_temperature;
-	remapinfo.curmap = GetLCAMapping();	//maybe slow
+	remapinfo.curmap = GetLCAMapping();	//makes a copy, maybe slow
+    this->lcamap = remapinfo.curmap;
+
 	remapinfo.dupcost = this->dupcost;
 	remapinfo.losscost = this->losscost;
 	
@@ -324,7 +338,7 @@ void SegmentalReconciler::ComputeAllUpMoves(RemapperInfo& remapinfo) {
         while (GNode* g = it->next()) {
             if (!g->IsLeaf()) {
                 SNode* mu = remapinfo.curmap[g];
-                vector<SNode*> possibleremapping = GetPossibleUpRemaps(mu);
+                vector<SNode*> possibleremapping = GetPossibleUpRemaps(mu, this->lcamap[g]);
 
                 for (SNode* s : possibleremapping) {
                     ComputeUpMove(g, s, remapinfo);
@@ -349,7 +363,36 @@ void SegmentalReconciler::ComputeAllBulkUpMoves(RemapperInfo& remapinfo) {
     TreeIterator* it_s = speciesTree->GetPreOrderIterator();
     while (SNode* s_src = it_s->next()) {
         if (remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].size() >= 1) {
-            vector<SNode*> possibleremapping = GetPossibleUpRemaps(s_src);
+            vector<SNode*> possibleremapping;
+
+            //******************
+            //compute possible remaps, making sure if needed that no gene gets remapped higher than allowed
+            if (max_remap_distance < 99999) {
+                possibleremapping = GetPossibleUpRemaps(s_src, nullptr);
+            }
+            else {
+                unordered_set<GNode*> gnodes = remapinfo.hashtable[Getspecieslbl(s_src, numintnodes)].return_max_heights();
+
+                if (gnodes.size() >= 2) {
+                    vector<SNode*> unfiltered_possibleremapping = GetPossibleUpRemaps(s_src, this->lcamap[ *gnodes.begin() ]);
+
+                    //suboptimal
+                    for (SNode* s : unfiltered_possibleremapping) {
+                        bool all_ok = true;
+                        for (GNode* g : gnodes) {
+                            if (GetSpeciesTreeDistance(s, this->lcamap[g]) > max_remap_distance) {
+                                all_ok = false;
+                                break;
+                            }
+                        }
+                        if (all_ok) {
+                            possibleremapping.push_back(s);
+                        }
+                    }
+                }
+            }
+            //******************
+
             for (SNode* s_dest : possibleremapping) {
                 bool added_move = ComputeBulkUpMove(s_src, s_dest, remapinfo);
             }
