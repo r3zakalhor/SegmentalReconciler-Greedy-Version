@@ -468,11 +468,11 @@ int main(int argc, char* argv[])
 
         /*args["d"] = "100";
         args["l"] = "1";
-        args["gf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_38\\all_genetrees.txt";
-        args["gf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_51\\applied_loss_fix_all_genetrees_edited.txt";
-        args["sf"] = "C:\\Users\\Manue\\Desktop\\tmp\\sim_51\\s_tree.newick";
-        args["al"] = "stochastic";*/
-
+        args["gf"] = "data/sim_1/all_genetrees.txt";
+        args["gf"] = "data/sim_1/applied_loss_fix_all_genetrees_edited.txt";
+        args["sf"] = "data/sim_1/s_tree.newick";
+        args["al"] = "greedy";
+        args["maxremap"] = "2";*/
         
 
 

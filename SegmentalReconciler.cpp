@@ -367,7 +367,7 @@ void SegmentalReconciler::ComputeAllBulkUpMoves(RemapperInfo& remapinfo) {
 
             //******************
             //compute possible remaps, making sure if needed that no gene gets remapped higher than allowed
-            if (max_remap_distance < 99999) {
+            if (max_remap_distance >= 99999) {
                 possibleremapping = GetPossibleUpRemaps(s_src, nullptr);
             }
             else {
@@ -469,14 +469,17 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
 			ComputeAllUpMoves(remapinfo);
 			
 			//At this point, remapinfo.moves has all the moves.  If nothing can be done, we exit
-			if (remapinfo.moves.GetNbMoves() == 0){
+            //ML Jul31: Changed this, in case we need to do a down move
+			/*if (remapinfo.moves.GetNbMoves() == 0){
 				done = true;
 				break;	//evil break
-			}
+			}*/
 			
-			bestmove = remapinfo.GetBestMove();
+            if (remapinfo.moves.GetNbMoves() > 0) {
+                bestmove = remapinfo.GetBestMove();
+            }
 			
-			if (bestmove.delta_cost > 0) {
+			if (remapinfo.moves.GetNbMoves() == 0 || bestmove.delta_cost > 0) {
 
 				//if no move is good, try bulk/down moves
                 ComputeAllDownMoves(remapinfo);
@@ -484,7 +487,7 @@ SegmentalReconcilerInfo SegmentalReconciler::Reconcile()
                 ComputeAllBulkUpMoves(remapinfo);
 				bestmove = remapinfo.GetBestMove();
 				
-				//if stil lnothing, give up
+				//if still nothing, give up
 				if (remapinfo.moves.GetNbMoves() == 0 || bestmove.delta_cost >= 0) {
 					done = true;
 					break;	//evil break
