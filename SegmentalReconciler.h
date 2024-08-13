@@ -429,6 +429,12 @@ public:
 	}
 
 
+
+	void SetDebugMode(bool is_debug_mode) {
+		debug_mode = is_debug_mode;
+	}
+
+
 private:
 
     vector<Node*> geneTrees;
@@ -448,6 +454,8 @@ private:
 	
 	unordered_map< Node*, unordered_map<Node*, int> > speciesTreeDistances;
     
+
+	bool debug_mode;
 
 
     //holds the current best solution, so that we can do some branch-and-bound early stop if we know we acnnot beat this in a recursion

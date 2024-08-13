@@ -17,6 +17,8 @@ SegmentalReconciler::SegmentalReconciler(vector<Node*>& geneTrees, Node* species
 	this->nbstochasticLoops = nbstochasticLoops;
 
     this->max_remap_distance = 999999;
+
+    this->debug_mode = false;
 }
 
 
@@ -72,11 +74,13 @@ void SegmentalReconciler::ComputeUpMove(GNode* g, SNode* s, RemapperInfo &remapi
     
 
 	
+    /*
+    * this below is misplaced and was causing bad remaps, and infinite loops
     if (!g->IsRoot() && mu == mpu)
         remapinfo.chain_lengths[g][mu] = remapinfo.chain_lengths[g->GetParent()][mu] + 1;
     else
         remapinfo.chain_lengths[g][mu] = 1;
-    
+    */
 
     if (g->IsRoot() || slbl < slbl_parent)
         remapinfo.chain_lengths[g][s] = 1;
@@ -170,6 +174,44 @@ void SegmentalReconciler::ComputeUpMove(GNode* g, SNode* s, RemapperInfo &remapi
     double costchange = remapinfo.lambda_gs[g][s] * remapinfo.losscost + remapinfo.delta_gs[g][s] * remapinfo.dupcost;
 	
 	remapinfo.moves.AddUpMove(remapinfo.delta_gs[g][s], remapinfo.lambda_gs[g][s], costchange, g, s);
+
+
+
+    if (debug_mode) {
+        
+        //do the remapping on a copy and check that computed delta dup is correct
+        GSMap mapcopy = remapinfo.curmap;   
+        
+        GNode* g_cur = g;
+        bool done = false;
+        while (!done) {
+            mapcopy[g_cur] = s;
+            if (g_cur->IsRoot()){
+                done = true;
+            }
+            else {
+                g_cur = g_cur->GetParent();
+
+                //we stop when g_cur is mapped to s or above, since the chain reaction of remaps can stop
+                if (Util::ToInt(remapinfo.curmap[g_cur]->GetLabel()) > Util::ToInt(s->GetLabel()))
+                    done = true;
+            }
+        }
+
+        int dh_before = GetExhaustiveDupHeight(remapinfo.curmap);
+        int dh_after = GetExhaustiveDupHeight(mapcopy);
+
+        int delta_dh = dh_after - dh_before;
+
+        
+        if (delta_dh != remapinfo.delta_gs[g][s]) {
+            cout << "ERROR: remapping g=" << g->GetLabel() << " to s=" << s->GetLabel() << " has different delta" << endl
+                << "exhaustive delta_dh=" << delta_dh << "   delta_gs[g][s]=" << remapinfo.delta_gs[g][s] << endl;
+
+        }
+    }
+
+
 
 }
 
@@ -339,6 +381,14 @@ void SegmentalReconciler::ComputeAllUpMoves(RemapperInfo& remapinfo) {
             if (!g->IsLeaf()) {
                 SNode* mu = remapinfo.curmap[g];
                 vector<SNode*> possibleremapping = GetPossibleUpRemaps(mu, this->lcamap[g]);
+
+
+                if (!g->IsRoot() && remapinfo.curmap[g->GetParent()] == mu)
+                    remapinfo.chain_lengths[g][mu] = remapinfo.chain_lengths[g->GetParent()][mu] + 1;
+                else
+                    remapinfo.chain_lengths[g][mu] = 1;
+
+
 
                 for (SNode* s : possibleremapping) {
                     ComputeUpMove(g, s, remapinfo);

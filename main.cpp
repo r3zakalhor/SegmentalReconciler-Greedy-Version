@@ -181,6 +181,11 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     if (args.find("o") != args.end()){
         outfile = args["o"];
     }
+
+    bool debug_mode = false;
+    if (args.find("debug") != args.end() && args["debug"] != "0") {
+        debug_mode = true;
+    }
 	
 	for (auto const& x : args)
     {
@@ -311,6 +316,10 @@ SegmentalReconcilerInfo Execute(map<string, string> &args) {
     cout << "dupcost: " << dupcost << " losscost: " << losscost << endl;
     
     reconciler.SetMaxRemapDistance(max_remap_distance);
+    if (debug_mode) {
+        cout << "Debugger mode set to true" << endl;
+        reconciler.SetDebugMode(true);
+    }
 
 	if (algorithm == "lca"){
 		info = reconciler.ReconcileWithLCAMap();
@@ -466,14 +475,14 @@ int main(int argc, char* argv[])
         ./segrec -sf "../data/sim_4/s_tree.newick" -gf "../data/sim_4/applied_loss_fix_all_genetrees_edited.txt" -d 10 -l 1 -al fastgreedy -maxremap 5
         */
 
-        /*args["d"] = "100";
+        /*args["d"] = "10";
         args["l"] = "1";
-        args["gf"] = "data/sim_1/all_genetrees.txt";
-        args["gf"] = "data/sim_1/applied_loss_fix_all_genetrees_edited.txt";
-        args["sf"] = "data/sim_1/s_tree.newick";
+        args["gf"] = "data/sim_14/all_genetrees.txt";
+        args["gf"] = "data/sim_14/applied_loss_fix_all_genetrees_edited.txt";
+        args["sf"] = "data/sim_14/s_tree.newick";
         args["al"] = "greedy";
-        args["maxremap"] = "2";*/
-        
+        args["maxremap"] = "3";
+        args["debug"] = "1";*/
 
 
         time_t start, end;
