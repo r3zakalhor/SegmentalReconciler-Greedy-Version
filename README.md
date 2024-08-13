@@ -61,7 +61,12 @@ Finally, by using the segmental reconciler outputs we can calculate the distance
 
 ### All in one script:
 
-You can find all these steps in a bash script that might be useful. (supplementaries/simphy_simulation.sh)
+You can use simualte_1WGD_simphy.sh or simualte_2WGD_simphy.sh in scripts driectory to launch 100 simulation with having one or two WGD in simphy simulations, also you can change -ld and -lb in the second call of ./simphy. (the first call of simphy is generating species tree).
+Then you can call analyze_sims_parallel.sh to call any algorithm in parallel and calculate the path distances.
+So,
+
+1) bash simualte_1WGD_simphy.sh
+2) bash analyze_sims_parallel.sh
 
 ### Generate number of duplication per species figure
 
