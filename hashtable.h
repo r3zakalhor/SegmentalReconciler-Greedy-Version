@@ -87,7 +87,7 @@ public:
             if (listofheights[size].size() == 1) {
                 unordered_set<Node*>::iterator itr;
                 for (itr = listofheights[size].begin(); itr != listofheights[size].end(); itr++)
-                    if ((*itr)->GetIndex() == g->GetIndex()) {
+                    if ((*itr) == g) {
                         return true;
                     }
             }
@@ -128,7 +128,7 @@ public:
                 }*/
                 unordered_set<Node*>::iterator itr;
                 for (itr = listofheights[i].begin(); itr != listofheights[i].end(); itr++)
-                    if ((*itr)->GetLabel() == g->GetLabel())
+                    if ((*itr) == g)
                         return i;
             }
         }
