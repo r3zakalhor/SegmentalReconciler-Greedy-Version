@@ -1,0 +1,249 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{tabularx,lipsum,environ,amsmath,amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+
+\makeatletter
+\newcommand{\problemtitle}[1]{\gdef\@problemtitle{#1}}% Store problem title
+\newcommand{\probleminput}[1]{\gdef\@probleminput{#1}}% Store problem input
+\newcommand{\problemquestion}[1]{\gdef\@problemquestion{#1}}% Store problem question
+\NewEnviron{problem}{
+  \problemtitle{}\probleminput{}\problemquestion{}% Default input is empty
+  \BODY% Parse input
+  \par\addvspace{.5\baselineskip}
+  \noindent
+  \begin{tabularx}{\textwidth}{@{\hspace{\parindent}} l X c}
+    \multicolumn{2}{@{\hspace{\parindent}}l}{\@problemtitle} \\% Title
+    \textbf{Input:} & \@probleminput \\% Input
+    \textbf{Problem:} & \@problemquestion% Question
+  \end{tabularx}
+  \par\addvspace{.5\baselineskip}
+}
+\makeatother
+
+\title{Algorithm to find segmental duplications and losses}
+%\author{r3za.kalhor }
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Problem}
+Under Minimum Episode (ME) model that duplication events can affect gene in the same species but can't contain a gene and one of its descendants (is shown that the problem of finding the optimal reconciliation with minimum number of ME duplication is NP-hard and the complexity of proposed algorithm is $O((\delta/\lambda)^{d+1}.n)$, $\delta$ is cost of segmental duplication and $\lambda$ is cost of segmental loss).\\ So, what we want to do? is define an algorithm to find segmental dups and losses with better complexity under ME model (unrestricted ME?) or a scalable algorithm?\\
+
+
+
+\begin{problem}
+  \problemtitle{Segmental Reconciliation Algorithm}
+  \probleminput{A set of gene trees $G'$, a species tree $S$, mapping $m$, cost of segmental duplication $\delta$ and cost of loss $\lambda$}
+  \problemquestion{Inferring ME segmental duplications + losses events with minimum cost }
+\end{problem}
+
+\section{Preliminary notions}
+
+[notations on trees, LCA, parent, define height of forest, define  ...]
+
+\subsection{Reconciliations}
+For given a set of gene trees $G'$ and a species tree $S$, a reconciliation is a mapping function $m : V(G') \rightarrow V(S)$ that maps each node $u$ of $G'$ to a node $m(u)$ of $S$ (Note: $V(G')$ shows the list of nodes of $G'$). Each leaf of $G'$ represents a distinct extant gene, which can be specified by a function $s : L(G') \xrightarrow{} L(S)$, which means that each extant gene belongs to an extant species. In a DL reconciliation, each internal node of $G'$ is associated to a node of $S$ that represents an event—a speciation (S) or a duplication (D). Indeed, orthologs are copies in different species related through speciation and gene families are likely to contain paralogs, which are copies that have evolved by duplication. Here are the reconciliation rules:\\
+
+\begin{itemize}
+    \item if $u$ is a leaf of $V(G')$, then $m(u)=s(u)$ (Note: $s(u)$ corresponds to the species type of $u$, we assume that we know the species type of the leaves of gene trees).
+    \item if $u$ is internal node of $V(S)$, then it maps to a species $m(u) \in V(S)$. %which is the Lowest-Common-Ancestor (LCA) of descending mapped species.
+    \item A mapping $m$ is valid if (rules for mapping $m$): maintain time consistency which means for each $u \in V(G')$, $m(parent(u))$ is either $m(u)$ or is an ancestor of $m(u)$.
+
+\end{itemize}
+
+
+let $u_l$ and $u_r$ be two children of $u$, then:
+\begin{itemize}
+    %\subitem if $m(u)=m(u_l)$ or $m(u)=m(u_r)$, then $u$ is a duplication node,
+    \item $m(u)$ is a speciation if $m(u_r)$ and $m(u_l)$ are incomparable (two nodes are  incomparable if they are not ancestors or descendants of each other) and $m(u)=LCA(m(u_l),m(u_r))$.
+    %\subitem otherwise, $u$ is a speciation node.
+    \item $m(u)$ is a duplication if $m(u_l)$ and $m(u_r)$ are either $m(u)$ or are descendants of $m(u)$.
+\end{itemize}
+
+
+To find the losses, there are species that do not exist in the path $(m(u), m(u_l))$ and $(m(u), m(u_r))$ for each internal node $u \in V(G')$.\\
+
+\begin{itemize}
+    \item if $m(u)$ is a speciation: number of loss for node $u$ is $l(u)=dist(m(u),m(u_l))+dist(m(u),m(u_r))-2$ where $dist$ returns the distance between two nodes (number of edges between two nodes).
+    \item if $m(u)$ is a duplication: number of loss for node $u$ is $l_m(u)=dist(m(u),m(u_l))+dist(m(u),m(u_r))$.
+\end{itemize}
+
+The total number of losses is:
+
+\begin{align*}
+    l_m = \sum_{u \in V(G')} l_m(u)
+\end{align*}
+
+Also, to find the segmental duplication by given a set of duplications nodes $D \subseteq V(G')$ occurring in a given node $v \in V(S)$, to see that the minimum number of segmental duplications associated with $v$ is the minimal number of parts in a partition of $D$ in which each part does not contain comparable nodes (comparable nodes are each other's ancestors or descendants) which is equal to the height of the forest of the duplications in $v$ (this number represents the number of segmental duplication in species $v$) that is shown by $H_m(v)$. The total number of segmental duplications is: 
+
+\begin{align*}
+    d = \sum_{v \in V(S)} H_m(v)
+\end{align*}
+    
+A most parsimonious reconciliation (MPR), is a reconciliation of minimum cost. To define cost, first of all, it is usually assumed that speciations do not incur cost. Therefore, the cost includes duplicates and losses. Here, we consider segmental duplications and denote the number of segmental duplications by $d$, also denote the number of losses by $l$. So, based on the cost of a segmental duplication $\delta$ and cost of a loss $\lambda$, the cost of reconciliation is $cost = \delta \times d + \lambda \times l$.\\
+
+The main goal is to find the minimum $cost$ by remapping the nodes of $G'$.
+
+
+
+\paragraph{Remapping.}  Given a node $u \in V(G')$, a species node $s \in V(S)$ such that $m(u) \prec s$, and a mapping $m$, the \emph{remapping of $u$ to $s$} is another mapping $m[u \rightarrow s]$ in which
+\begin{itemize}
+    \item 
+    $m[u \rightarrow s](w) = s$ for every ancestor $w$ of $u$ such that $m(w) \prec s$;
+
+    \item 
+    $m[u \rightarrow s](w) = m(w)$ for every other node of $G'$.
+    
+\end{itemize}
+
+\section{Greedy Algorithm}
+In this section we represent a greedy algorithm for segmental reconciliation problem.
+
+
+\begin{algorithm}
+\caption{Greedy algorithm for segmental reconciliation}\label{alg:cap}
+\begin{algorithmic}
+\Require a set of gene trees $G'$, a species tree $S$, a LCA-mapping $m$, cost of segmental duplication $\delta$ and cost of loss $\lambda$
+\Ensure MPR for segmental duplications
+\State $d,l \gets$ Calculate-Num-of-Dups-Losses($G',S, m$)
+\State $CurrentCost \gets d.\delta+l.\lambda$
+\For{each internal node $u \in V(G')$}
+\State Let $X$ be the set of all possible ancestors of $m(u)$
+\For{each node $x \in X$}
+\State $temp \gets m(u)$
+\State $m(u) \gets x$
+\State $d,l \gets$ Calculate-Num-of-Dups-Losses($G',S, m$)
+\State $Cost \gets d.\delta+l.\lambda$
+\If{$Cost < CurrentCost$}
+    \State $CurrentCost \gets Cost$
+\Else{} 
+    \State $m(u) \gets temp$
+\EndIf
+\EndFor
+\EndFor\\
+\Return $Cost$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Extended Greedy Algorithm}
+In this section we represent a bottom-up approach for segmental reconciliation problem. First, we use LCA-mapping as initial mapping. Then, it calculates the cost with all possible remap-
+ping species for each node in the gene trees and considers the mapping that
+represents the minimum cost. In our algorithm, we start from the species
+closest to the root of the species tree to avoid recomputing the number of
+segmental duplications when remapping a node to all possible species, since
+we involve more nodes of gene trees that need to recalculate segmental duplications by remapping to the most distant species. Therefore, by calculating
+the number of segmental duplications for all nodes with the first attempt, we
+do not need to recalculate the segmental duplications for these nodes as we
+proceed to other species.\\
+
+Define some variable as follows:
+
+\begin{itemize}
+    \item $D[u,s_i,s_j] = H_{m[u \rightarrow s_i]}(s_j)$, that is the  maximum height of forest of the duplications in $s_j$ species in tree $G$ if we remapped $u$ to $s_i$, where $u \in V(G')$, and $s_i, s_j \in S$.
+    \item $D'[u] =$ maximum height of the duplications in $s$ species in subtree rooted at $u$ while $u$ is mapped to the $s$, where $u  \in V(G')$, and $s \in V(S)$.  [TODO: how do we refer to subtree rooted at $u$ that contains only nodes mapped to $m(u)$?]
+    
+    \item for each node in $G'$, we have $L[u,A] =$  number of losses in tree if remapped to $A$
+\end{itemize}
+
+    \begin{figure}[ht]
+    \centerline{
+    \includegraphics[width=3.5cm]{path578.png}
+    }
+    \caption{Species tree}
+    \label{fig:S}
+    \end{figure}
+
+    \begin{figure}[ht]
+    \centerline{
+    \includegraphics[width=6.5cm]{path579.png}
+    }
+    \caption{Gene tree}
+    \label{fig:G}
+    \end{figure}
+
+For example, in \ref{fig:S} and \ref{fig:G} a species tree and a gene tree are shown that duplication nodes are specified with squares. The mapping shown on the gene tree is initial mapping based on the LCA-mapping. We can have following tables for node $u$ in the gene tree.\\
+
+\begin{itemize}
+    \item With initial mapping (map $u$ to the $A$): $D[u,A,A] = 2$, $D[u,A,B] = 2$, $D[u,A,C] = 0$ and $D'[u,A]= 1$.
+
+    \item if we remap $u$ to the $B$: $D[u,B,A] = 0$, $D[u,B,B] = 2$, $D[u,B,C] = 0$ and $D'[u,B]= 0$.
+
+    \item if we remap $u$ to the $C$: $D[u,C,A] = 0$, $D[u,C,B] = 1$, $D[u,C,C] = 3$ and $D'[u,C]= 0$.
+    
+\end{itemize}
+
+Or we can have following tables for node $u'$ in gene tree:\\
+\begin{itemize}
+    \item With initial mapping (map $u'$ to the $B$): $D[u',B,A] = 2$, $D[u',B,B] = 2$, $D[u',B,C] = 0$ and $D'[u',B]= 2$.
+
+    \item if we remap $u'$ to the $C$: $D[u',C,A] = 2$, $D[u',C,B] = 1$, $D[u',C,C] = 1$ and $D'[u',C]= 0$.\\
+
+    Note: we can not remap $u'$ to the $A$ because the LCA of $c$ and $b$ species is $B$.
+
+    
+\end{itemize}
+
+
+\begin{algorithm}
+\caption{Extended greedy algorithm for segmental reconciliation}\label{alg:cap}
+\begin{algorithmic}
+\Require a set of gene trees $G'$, a species tree $S$, a LCA-mapping $m$, cost of segmental duplication $\delta$ and cost of loss $\lambda$
+\Ensure MPR for segmental duplications
+
+
+\State Let $d$ be the number of segmental duplication over $G'$
+\State Let $l$ be the number of losses over $G'$
+\State $CurrentCost \gets d.\delta+l.\lambda$
+
+\For{each internal node $u \in V(G')$}
+    \State Let $X$ be the set of all possible ancestors of $m(u)$
+    \State Sort $X$ based on the level in $S$
+    \State ancestors[]
+    \For{$i$ from $u$ to $root$}
+        \State ancestors.add($m(i)$)
+        \State $u=p(u)$
+    \EndFor
+    \For{each node $x \in X$ from last to first}
+        \State let $modified\_species$ be a set of modified species form $u$ to $m(p(u))=x$
+        \State let $modified\_species\_ack$ be a acknowledgement of modified species when they are recalculated (intial with false)
+        \For{$i$ from $u$ to $m(p(u))=x$}
+            \State $temps \gets m(u)$
+            \State $m(u) \gets x$
+            \State $modified\_species.add(m(u))$
+        \EndFor
+    
+        \For{each $s_i \in modified\_species$}
+            \If{$modified\_species\_ack(s_i)=False$ or $s_i=x$}
+                \State $D[u, x, s_i] = recalculate\_max\_height(s_i)$
+                \State $modified\_species\_ack(s_i)=True$
+            \EndIf
+        \EndFor
+
+        \State Let $d$ be the new number of segmental duplication over $G'$
+        \State Let $l$ be the new number of losses over $G'$
+        \State $Cost \gets d.\delta+l.\lambda$
+        \If{$Cost < CurrentCost$}
+            \State $CurrentCost \gets Cost$
+        \Else{} 
+            \State $m(u) \gets temps$
+        \EndIf
+        
+    \EndFor
+
+
+
+    
+\EndFor
+\\
+
+\Return $Cost, m$
+\end{algorithmic}
+\end{algorithm}
+
+
+\end{document}

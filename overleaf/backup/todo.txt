@@ -1,0 +1,9 @@
+- run yeast with 9K trees
+--- clean + unclean
+
+- backcheck the salmon paper for signal on node 18
+
+
+- read and cite https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4038794/
+
+
